@@ -1,9 +1,109 @@
 basePath: /
+definitions:
+  server.CreateRoomResponse:
+    properties:
+      room_id:
+        type: integer
+    type: object
+  server.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+    type: object
+  server.RoomResponse:
+    properties:
+      room_id:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
   description: Realtime chat rooms with WebSocket and REST
   title: Chatter API
   version: "0.01"
-paths: {}
+paths:
+  /health:
+    get:
+      description: Returns server status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /rooms:
+    post:
+      consumes:
+      - application/json
+      description: Generates and creates a new room with a random ID
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/server.CreateRoomResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Create a new room
+      tags:
+      - rooms
+  /rooms/{room_id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns room information by ID
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.RoomResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Get room info
+      tags:
+      - rooms
+  /ws/{room_id}:
+    get:
+      description: Opens WebSocket connection to the specified room
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: Connect to WebSocket room
+      tags:
+      - websocket
 swagger: "2.0"

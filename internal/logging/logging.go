@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -9,21 +10,24 @@ import (
 )
 
 type Level int
+type keyType string
 
 const (
 	Debug Level = -4
 	Info  Level = 0
 	Warn  Level = 4
 	Error Level = 8
+
+	loggerKey keyType = "logger"
 )
 
 // Logger defines the interface for structured logging.
 type Logger interface {
-	Debug(msg string, keysAndValues ...interface{})
-	Info(msg string, keysAndValues ...interface{})
-	Warn(msg string, keysAndValues ...interface{})
-	Error(msg string, keysAndValues ...interface{})
-	Log(level Level, msg string, keysAndValues ...interface{})
+	Debug(ctx context.Context, msg string, keysAndValues ...interface{})
+	Info(ctx context.Context, msg string, keysAndValues ...interface{})
+	Warn(ctx context.Context, msg string, keysAndValues ...interface{})
+	Error(ctx context.Context, msg string, keysAndValues ...interface{})
+	Log(ctx context.Context, level Level, msg string, keysAndValues ...interface{})
 }
 
 func NewLogger() Logger {
@@ -31,9 +35,12 @@ func NewLogger() Logger {
 }
 
 // NewFileLogger создает логгер, пишущий в файл
-func NewFileLogger(logFile string) Logger {
-	writer := setupFileWriter(logFile)
-	return newSlogLogger(writer)
+func NewFileLogger(logFile string, logToConsole bool) (Logger, error) {
+	writer, err := setupFileWriter(logFile, logToConsole)
+	if err != nil {
+		return nil, err
+	}
+	return newSlogLogger(writer), nil
 }
 
 type SlogLogger struct {
@@ -47,40 +54,44 @@ func newSlogLogger(writer io.Writer) Logger {
 	}
 }
 
-func setupFileWriter(logFile string) io.Writer {
+func setupFileWriter(logFile string, logToConsole bool) (io.Writer, error) {
 	logDir := filepath.Dir(logFile)
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		slog.Error("Failed to create log directory", "error", err, "path", logDir)
-		return os.Stdout
+		return nil, fmt.Errorf("failed to create log directory %s: %w", logDir, err)
 	}
 
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		slog.Error("Failed to open log file", "error", err, "path", logFile)
-		return os.Stdout
+		return nil, fmt.Errorf("failed to open log file %s: %w", logFile, err)
 	}
 
-	return file
+	if logToConsole {
+		return io.MultiWriter(file, os.Stdout), nil
+	}
+	return file, nil
 }
 
-func (l *SlogLogger) Debug(msg string, keysAndValues ...interface{}) {
-	l.logger.Debug(msg, keysAndValues...)
+func (l *SlogLogger) Debug(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	l.Log(ctx, Debug, msg, keysAndValues...)
 }
 
-func (l *SlogLogger) Info(msg string, keysAndValues ...interface{}) {
-	l.logger.Info(msg, keysAndValues...)
+func (l *SlogLogger) Info(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	l.Log(ctx, Info, msg, keysAndValues...)
 }
 
-func (l *SlogLogger) Warn(msg string, keysAndValues ...interface{}) {
-	l.logger.Warn(msg, keysAndValues...)
+func (l *SlogLogger) Warn(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	l.Log(ctx, Warn, msg, keysAndValues...)
 }
 
-func (l *SlogLogger) Error(msg string, keysAndValues ...interface{}) {
-	l.logger.Error(msg, keysAndValues...)
+func (l *SlogLogger) Error(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	l.Log(ctx, Error, msg, keysAndValues...)
 }
 
-func (l *SlogLogger) Log(level Level, msg string, keysAndValues ...interface{}) {
+func (l *SlogLogger) Log(ctx context.Context, level Level, msg string, keysAndValues ...interface{}) {
 	if l != nil && l.logger != nil {
-		l.logger.Log(context.Background(), slog.Level(level), msg, keysAndValues...)
+		if requestID, ok := ctx.Value("request_id").(string); ok {
+			keysAndValues = append(keysAndValues, "request_id", requestID)
+		}
+		l.logger.Log(ctx, slog.Level(level), msg, keysAndValues...)
 	}
 }
