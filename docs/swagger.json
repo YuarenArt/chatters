@@ -1,0 +1,12 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Realtime chat rooms with WebSocket and REST",
+        "title": "Chatter API",
+        "contact": {},
+        "version": "0.01"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {}
+}

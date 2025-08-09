@@ -1,0 +1,9 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: Realtime chat rooms with WebSocket and REST
+  title: Chatter API
+  version: "0.01"
+paths: {}
+swagger: "2.0"

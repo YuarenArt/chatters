@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatters - Тест</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-card h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .test-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .btn {
+            display: inline-block;
+            background: #6366f1;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 10px 10px 0;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #5855eb;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-card">
+        <h2>🚀 Chatters - Тест фронтенда</h2>
+        <p>Этот файл поможет вам протестировать веб-интерфейс чата перед запуском основного приложения.</p>
+        
+        <div class="status info">
+            <strong>Информация:</strong> Откройте index.html для полного функционала чата.
+        </div>
+        
+        <a href="index.html" class="btn">Открыть чат</a>
+    </div>
+
+    <div class="test-card">
+        <h2>📋 Проверка файлов</h2>
+        <p>Убедитесь, что все необходимые файлы присутствуют:</p>
+        <ul>
+            <li>✅ index.html - главная страница чата</li>
+            <li>✅ styles.css - стили интерфейса</li>
+            <li>✅ script.js - логика приложения</li>
+            <li>✅ README.md - документация</li>
+        </ul>
+    </div>
+
+    <div class="test-card">
+        <h2>🔧 Запуск</h2>
+        <p>Для тестирования с Go сервером:</p>
+        <ol>
+            <li>Запустите Go сервер: <code>make run</code></li>
+            <li>Откройте <code>web/index.html</code> в браузере</li>
+            <li>Или используйте HTTP сервер: <code>make web</code></li>
+        </ol>
+    </div>
+
+    <div class="test-card">
+        <h2>🌐 Тестирование</h2>
+        <p>Рекомендуется тестировать в нескольких браузерах:</p>
+        <ul>
+            <li>Chrome/Edge (рекомендуется)</li>
+            <li>Firefox</li>
+            <li>Safari</li>
+            <li>Мобильные браузеры</li>
+        </ul>
+    </div>
+
+    <script>
+        // Простая проверка загрузки файлов
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ Тестовая страница загружена');
+            
+            // Проверяем наличие основных файлов
+            const files = ['index.html', 'styles.css', 'script.js'];
+            files.forEach(file => {
+                fetch(file)
+                    .then(response => {
+                        if (response.ok) {
+                            console.log(`✅ ${file} доступен`);
+                        } else {
+                            console.error(`❌ ${file} недоступен`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`❌ Ошибка загрузки ${file}:`, error);
+                    });
+            });
+        });
+    </script>
+</body>
+</html> 

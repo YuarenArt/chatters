@@ -17,6 +17,10 @@ go.work.sum
 # Vendor directory
 /vendor/
 
+# Logs and generated docs
+/logs/
+/docs/
+
 # Dependency directories
 Godeps/
 
