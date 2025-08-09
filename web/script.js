@@ -92,7 +92,7 @@ class ChatApp {
 
     async createRoom() {
         try {
-            const response = await fetch('/rooms', {
+            const response = await fetch('http://localhost:8080/rooms', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -149,7 +149,7 @@ class ChatApp {
 
         try {
             // Проверяем существование комнаты
-            const response = await fetch(`/rooms/${roomId}`);
+            const response = await fetch(`http://localhost:8080/rooms/${roomId}`);
             if (!response.ok) {
                 this.showNotification('Ошибка', 'Комната не найдена', 'error');
                 return;
@@ -164,8 +164,7 @@ class ChatApp {
     }
 
     connectWebSocket(roomId, username) {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/${roomId}`;
+        const wsUrl = `ws://localhost:8080/ws/${roomId}`;
         
         this.ws = new WebSocket(wsUrl);
         
