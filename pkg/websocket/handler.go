@@ -11,10 +11,16 @@ import (
 
 const (
 	bufferSize = 256
-	// Validation constants
+
 	MaxUsernameLength = 50
 	MinUsernameLength = 4
 )
+
+// ErrorResponse represents error responses
+type ErrorResponse struct {
+	Code  int    `json:"code"`
+	Error string `json:"error"`
+}
 
 type Handler struct {
 	Hub      *Hub
@@ -60,17 +66,17 @@ func (e *ValidationError) Error() string {
 }
 
 // HandleWebSocket godoc
-// @Summary      Connect to WebSocket room
-// @Description  Opens WebSocket connection to the specified room
-// @Tags         websocket
-// @Produce      json
-// @Param        room_id  path  int  true  "Room ID"
-// @Param        username query string false "Username for the chat"
-// @Success      101  {string}  string  "Switching Protocols"
-// @Failure      400  {object}  ErrorResponse
-// @Failure      404  {object}  ErrorResponse
-// @Failure      500  {object}  ErrorResponse
-// @Router       /ws/{room_id} [get]
+// @Summary Connect to WebSocket room
+// @Description Opens WebSocket connection to the specified room
+// @Tags websocket
+// @Produce json
+// @Param room_id  path  int  true  "Room ID"
+// @Param username query string false "Username for the chat"
+// @Success 101 {string} string  "Switching Protocols"
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router api/ws/{room_id} [get]
 func (h *Handler) HandleWebSocket(c *gin.Context) {
 	roomIDStr := c.Param("room_id")
 
@@ -151,10 +157,4 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		// The client will still be able to write
 		conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"read task failed"}`))
 	}
-}
-
-// ErrorResponse represents error responses
-type ErrorResponse struct {
-	Code  int    `json:"code"`
-	Error string `json:"error"`
 }

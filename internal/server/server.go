@@ -89,24 +89,30 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 
 	s.registerRoutes()
 
+	engine.StaticFS("/static", http.Dir("web/static"))
+
+	engine.GET("/", func(c *gin.Context) {
+		c.File("web/static/index.html")
+	})
+
 	return s
 }
 
 // Health godoc
-// @Summary      Health check
-// @Description  Returns server status
-// @Tags         health
-// @Produce      json
-// @Success      200  {object}  map[string]string
-// @Router       /health [get]
+// @Summary Health check
+// @Description Returns server status
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router api/health [get]
 func (s *Server) registerRoutes() {
-	api := s.Engine.Group("/")
+	api := s.Engine.Group("/api")
 
 	api.GET("/ws/:room_id", s.Handler.HandleWebSocket)
 	api.POST("/rooms", s.CreateRoom())
 	api.GET("/rooms/:room_id", s.Room())
 
-	s.Engine.GET("/health", func(c *gin.Context) {
+	s.Engine.GET("api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		s.Logger.Log(c.Request.Context(), logging.Debug, "Health check", "status", "ok")
 	})
@@ -187,20 +193,19 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 }
 
 // CreateRoom godoc
-// @Summary      Create a new room
-// @Description  Generates and creates a new room with a random ID
-// @Tags         rooms
-// @Accept       json
-// @Produce      json
-// @Success      201  {object}  CreateRoomResponse
-// @Failure      409  {object}  ErrorResponse
-// @Failure      500  {object}  ErrorResponse
-// @Router       /rooms [post]
+// @Summary Create a new room
+// @Description Generates and creates a new room with a random ID
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Success 201 {object} CreateRoomResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router api/rooms [post]
 func (s *Server) CreateRoom() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
-		// Логируем входящий запрос
 		s.Logger.Log(ctx, logging.Info, "CreateRoom request received",
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
@@ -241,22 +246,21 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 }
 
 // Room godoc
-// @Summary      Get room info
-// @Description  Returns room information by ID
-// @Tags         rooms
-// @Accept       json
-// @Produce      json
-// @Param        room_id  path      int  true  "Room ID"
-// @Success      200  {object}  RoomResponse
-// @Failure      400  {object}  ErrorResponse
-// @Failure      404  {object}  ErrorResponse
-// @Router       /rooms/{room_id} [get]
+// @Summary Get room info
+// @Description Returns room information by ID
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Param room_id path int true "Room ID"
+// @Success 200 {object} RoomResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router api/rooms/{room_id} [get]
 func (s *Server) Room() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		roomIDStr := c.Param("room_id")
 
-		// Логируем входящий запрос
 		s.Logger.Log(ctx, logging.Info, "Room info request received",
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,

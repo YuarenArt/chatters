@@ -1,0 +1,24 @@
+<div id="chatRoom" class="chat-room hidden">
+    <div class="chat-header">
+        <div class="room-info">
+            <h3>Комната #<span id="currentRoomId"></span></h3>
+            <span class="online-count">
+                <i class="fas fa-circle online-indicator"></i>
+                <span id="onlineCount">0</span> онлайн
+            </span>
+        </div>
+        <button id="leaveBtn" class="btn btn-outline">
+            <i class="fas fa-sign-out-alt"></i>
+            Покинуть
+        </button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+        <div class="input-wrapper">
+            <label for="messageInput"></label><input type="text" id="messageInput" placeholder="Введите сообщение..." maxlength="1000">
+            <button id="sendBtn" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
