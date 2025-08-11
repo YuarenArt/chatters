@@ -167,7 +167,6 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		method := c.Request.Method
-		userAgent := c.Request.UserAgent()
 		clientIP := c.ClientIP()
 		contentLength := c.Request.ContentLength
 
@@ -184,10 +183,8 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 			"status", status,
 			"latency", latency.String(),
 			"client_ip", clientIP,
-			"user_agent", userAgent,
 			"content_length", contentLength,
 			"response_size", responseSize,
-			"request_id", requestID,
 		)
 	}
 }
