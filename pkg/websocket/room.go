@@ -48,7 +48,6 @@ func (r *Room) Run() {
 				select {
 				case client.Send <- msg:
 				default:
-					// Client's send buffer is full, close connection
 					close(client.Send)
 					delete(r.Clients, client)
 				}

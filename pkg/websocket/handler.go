@@ -108,7 +108,6 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Validate username if provided
 	username := strings.TrimSpace(c.Query("username"))
 	if username != "" {
 		if err := validateUsername(username); err != nil {
@@ -140,21 +139,15 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	room.Register <- client
 
-	// Submit write task with error handling
 	if err := h.Pool.Submit(func() {
 		client.Write()
 	}); err != nil {
-		// Log the error but don't fail the connection
-		// The client will still be able to read
 		conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"write task failed"}`))
 	}
 
-	// Submit read task with error handling
 	if err := h.Pool.Submit(func() {
 		client.Read()
 	}); err != nil {
-		// Log the error but don't fail the connection
-		// The client will still be able to write
 		conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"read task failed"}`))
 	}
 }

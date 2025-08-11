@@ -176,7 +176,6 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 		status := c.Writer.Status()
 		responseSize := c.Writer.Size()
 
-		// Enhanced logging with more context
 		logger.Log(ctx, logging.Info, "HTTP request",
 			"method", method,
 			"path", path,
@@ -209,15 +208,14 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 			"client_ip", c.ClientIP(),
 			"user_agent", c.Request.UserAgent())
 
-		// Generate room ID with retry logic for collision handling
 		var roomID websocket.ID
 		var created bool
-		maxRetries := 10
+		maxRetries := 100
 
 		for i := 0; i < maxRetries; i++ {
 			roomID = websocket.ID(rand.Uint32())
 			if roomID < MinRoomID || roomID > MaxRoomID {
-				continue // Skip invalid IDs
+				continue
 			}
 
 			_, created = s.Handler.Hub.CreateRoom(roomID)
@@ -265,7 +263,6 @@ func (s *Server) Room() func(c *gin.Context) {
 			"client_ip", c.ClientIP(),
 			"user_agent", c.Request.UserAgent())
 
-		// Validate room ID
 		roomID, err := validateRoomID(roomIDStr)
 		if err != nil {
 			s.Logger.Log(ctx, logging.Warn, "Invalid room ID provided",
