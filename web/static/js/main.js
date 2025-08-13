@@ -100,31 +100,6 @@ function waitForElement(elementId, timeout = 5000) {
     });
 }
 
-// Initialize widgets - REMOVED to prevent duplication
-// async function initializeWidgets() {
-//     try {
-//         // Initialize create room widget
-//         if (typeof CreateRoomWidget === 'function') {
-//             window.ChattersApp.widgets.createRoom = new CreateRoomWidget();
-//             console.log('CreateRoomWidget initialized');
-//         } else {
-//             console.warn('CreateRoomWidget not found');
-//         }
-//         
-//         // Initialize chat widget
-//         if (typeof ChatWidget === 'function') {
-//             window.ChattersApp.widgets.chat = new ChatWidget();
-//             console.log('ChatWidget initialized');
-//         } else {
-//             console.warn('ChatWidget not found');
-//         }
-//         
-//     } catch (error) {
-//         console.error('Widget initialization error:', error);
-//         throw error;
-//     }
-// }
-
 // Bind global events
 function bindGlobalEvents() {
     // Error handling
