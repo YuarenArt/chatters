@@ -298,6 +298,22 @@ body {
     font-size: var(--font-size-sm);
 }
 
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    font-size: var(--font-size-sm);
+}
+
+.notification-close:hover {
+    color: var(--text-primary);
+    background: var(--background-secondary);
+}
+
 @keyframes fadeInUp {
     from {
         opacity: 0;

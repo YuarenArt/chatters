@@ -15,7 +15,7 @@ import (
 )
 
 // @title           Chatters API
-// @version         0.01
+// @version         0.02
 // @description     Realtime chat rooms with WebSocket and REST
 // @BasePath        /
 // @host            localhost:8080

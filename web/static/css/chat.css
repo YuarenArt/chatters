@@ -55,6 +55,7 @@
     align-items: flex-start;
     gap: var(--spacing-3);
     animation: fadeInUp 0.3s ease;
+    width: 100%;
 }
 
 .message.own {
@@ -72,12 +73,14 @@
     background: var(--primary-color);
     color: white;
     border-bottom-right-radius: var(--radius-sm);
+    margin-left: auto; 
 }
 
 .message:not(.own) .message-content {
     background: var(--background-secondary);
     color: var(--text-primary);
     border-bottom-left-radius: var(--radius-sm);
+    margin-right: auto; 
 }
 
 .message-header {

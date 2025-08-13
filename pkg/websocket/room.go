@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"sync"
 )
 
@@ -35,6 +36,10 @@ func (r *Room) Run() {
 			r.mu.Lock()
 			r.Clients[client] = true
 			r.mu.Unlock()
+
+			// Send join notification to all clients
+			r.broadcastJoinNotification(client)
+
 		case client := <-r.Unregister:
 			r.mu.Lock()
 			if _, ok := r.Clients[client]; ok {
@@ -42,6 +47,10 @@ func (r *Room) Run() {
 				close(client.Send)
 			}
 			r.mu.Unlock()
+
+			// Send leave notification to remaining clients
+			r.broadcastLeaveNotification(client)
+
 		case msg := <-r.Broadcast:
 			r.mu.RLock()
 			for client := range r.Clients {
@@ -56,6 +65,66 @@ func (r *Room) Run() {
 		case <-r.Stop:
 			return
 		}
+	}
+}
+
+// broadcastJoinNotification sends a join notification to all clients
+func (r *Room) broadcastJoinNotification(joiningClient *Client) {
+	joinNotification := JoinNotification{
+		Username:    joiningClient.Username,
+		OnlineCount: r.GetClientCount(),
+	}
+
+	joinData, err := json.Marshal(joinNotification)
+	if err != nil {
+		return
+	}
+
+	joinMsg := Message{
+		Type: "join",
+		Data: joinData,
+	}
+
+	if msgBytes, err := json.Marshal(joinMsg); err == nil {
+		r.mu.RLock()
+		for client := range r.Clients {
+			select {
+			case client.Send <- msgBytes:
+			default:
+				// Client channel is full, skip
+			}
+		}
+		r.mu.RUnlock()
+	}
+}
+
+// broadcastLeaveNotification sends a leave notification to all clients
+func (r *Room) broadcastLeaveNotification(leavingClient *Client) {
+	leaveNotification := LeaveNotification{
+		Username:    leavingClient.Username,
+		OnlineCount: r.GetClientCount(),
+	}
+
+	leaveData, err := json.Marshal(leaveNotification)
+	if err != nil {
+		return
+	}
+
+	leaveMsg := Message{
+		Type: "leave",
+		Data: leaveData,
+	}
+
+	if msgBytes, err := json.Marshal(leaveMsg); err == nil {
+		r.mu.RLock()
+		for client := range r.Clients {
+			select {
+			case client.Send <- msgBytes:
+			default:
+				// Client channel is full, skip
+			}
+		}
+		r.mu.RUnlock()
 	}
 }
 

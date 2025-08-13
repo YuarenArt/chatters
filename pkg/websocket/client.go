@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,11 +21,22 @@ type Message struct {
 }
 
 type ChatMessage struct {
-	Text string `json:"text"`
+	Text     string `json:"text"`
+	Username string `json:"username"`
 }
 
 type JoinPayload struct {
 	Username string `json:"username"`
+}
+
+type JoinNotification struct {
+	Username    string `json:"username"`
+	OnlineCount int    `json:"onlineCount"`
+}
+
+type LeaveNotification struct {
+	Username    string `json:"username"`
+	OnlineCount int    `json:"onlineCount"`
 }
 
 type Client struct {
@@ -45,7 +57,46 @@ func (c *Client) Read() {
 		if err != nil {
 			break
 		}
-		c.Room.Broadcast <- msg
+
+		// Parse the incoming message to add username
+		var message Message
+		if err := json.Unmarshal(msg, &message); err != nil {
+			continue
+		}
+
+		// If it's a chat message, add the username
+		if message.Type == "chat" {
+
+			var data map[string]interface{}
+			if err := json.Unmarshal(message.Data, &data); err != nil {
+				continue
+			}
+
+			text, ok := data["text"].(string)
+			if !ok {
+				continue
+			}
+
+			// Create new chat message with username
+			chatMsg := ChatMessage{
+				Text:     text,
+				Username: c.Username,
+			}
+
+			log.Printf("✅ Создано сообщение: %+v", chatMsg)
+
+			// Re-serialize the message with username
+			chatData, _ := json.Marshal(chatMsg)
+			message.Data = chatData
+
+			// Re-serialize the complete message
+			if newMsg, err := json.Marshal(message); err == nil {
+				c.Room.Broadcast <- newMsg
+			}
+		} else {
+			// For non-chat messages, just broadcast as is
+			c.Room.Broadcast <- msg
+		}
 	}
 }
 
