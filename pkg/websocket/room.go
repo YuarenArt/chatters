@@ -37,7 +37,6 @@ func (r *Room) Run() {
 			r.Clients[client] = true
 			r.mu.Unlock()
 
-			// Send join notification to all clients
 			r.broadcastJoinNotification(client)
 
 		case client := <-r.Unregister:
@@ -48,7 +47,6 @@ func (r *Room) Run() {
 			}
 			r.mu.Unlock()
 
-			// Send leave notification to remaining clients
 			r.broadcastLeaveNotification(client)
 
 		case msg := <-r.Broadcast:
@@ -91,7 +89,6 @@ func (r *Room) broadcastJoinNotification(joiningClient *Client) {
 			select {
 			case client.Send <- msgBytes:
 			default:
-				// Client channel is full, skip
 			}
 		}
 		r.mu.RUnlock()
@@ -121,7 +118,6 @@ func (r *Room) broadcastLeaveNotification(leavingClient *Client) {
 			select {
 			case client.Send <- msgBytes:
 			default:
-				// Client channel is full, skip
 			}
 		}
 		r.mu.RUnlock()

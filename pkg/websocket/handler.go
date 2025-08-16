@@ -14,6 +14,8 @@ const (
 
 	MaxUsernameLength = 50
 	MinUsernameLength = 4
+
+	DefaultName = "Anonymous"
 )
 
 // ErrorResponse represents error responses
@@ -118,7 +120,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 			return
 		}
 	} else {
-		username = "Anonymous" // Default username
+		username = DefaultName
 	}
 
 	conn, err := h.Upgrader.Upgrade(c.Writer, c.Request, nil)

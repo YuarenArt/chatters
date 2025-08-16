@@ -1,0 +1,42 @@
+package websocket
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+)
+
+type HubTestSuite struct {
+	suite.Suite
+	hub *Hub
+}
+
+func (s *HubTestSuite) SetupTest() {
+	s.hub = NewHub()
+}
+
+func (s *HubTestSuite) TestCreateRoom() {
+	room, created := s.hub.CreateRoom(1)
+	s.True(created)
+	s.NotNil(room)
+	s.Equal(ID(1), room.ID)
+
+	_, exists := s.hub.GetRoom(1)
+	s.True(exists)
+}
+
+func (s *HubTestSuite) TestGetNonExistentRoom() {
+	_, exists := s.hub.GetRoom(999)
+	s.False(exists)
+}
+
+func (s *HubTestSuite) TestDeleteRoom() {
+	s.hub.CreateRoom(1)
+	s.True(s.hub.DeleteRoom(1))
+	_, exists := s.hub.GetRoom(1)
+	s.False(exists)
+}
+
+func TestHubTestSuite(t *testing.T) {
+	suite.Run(t, new(HubTestSuite))
+}
