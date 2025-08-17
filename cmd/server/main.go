@@ -14,11 +14,17 @@ import (
 	"github.com/YuarenArt/chatters/pkg/websocket"
 )
 
-// @title           Chatters API
-// @version         0.02
-// @description     Realtime chat rooms with WebSocket and REST
+// @title           Chatters Chat API
+// @version         1.0.0
+// @description     Real-time chat application API with WebSocket support for instant messaging and room management
 // @BasePath        /
 // @host            localhost:8080
+// @schemes         http https
+// @contact.name    Chatters Development Team
+// @contact.url     https://github.com/YuarenArt/chatters
+// @license.name    MIT
+// @license.url     https://opensource.org/licenses/MIT
+// @termsOfService  https://github.com/YuarenArt/chatters/blob/main/LICENSE
 func main() {
 	ctx := context.Background()
 	cfg := config.NewConfig()

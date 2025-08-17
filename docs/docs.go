@@ -9,15 +9,23 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "termsOfService": "https://github.com/YuarenArt/chatters/blob/main/LICENSE",
+        "contact": {
+            "name": "Chatters Development Team",
+            "url": "https://github.com/YuarenArt/chatters"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
+        "/api/health": {
             "get": {
-                "description": "Returns server status",
+                "description": "Returns server health status and basic information",
                 "produces": [
                     "application/json"
                 ],
@@ -27,20 +35,24 @@ const docTemplate = `{
                 "summary": "Health check",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Server health information",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/rooms": {
+        "/api/rooms": {
             "post": {
-                "description": "Generates and creates a new room with a random ID",
+                "description": "Generates and creates a new room with a random ID. The room will be immediately available for WebSocket connections. Room IDs are generated randomly between 1 and 999,999,999.",
                 "consumes": [
                     "application/json"
                 ],
@@ -51,25 +63,47 @@ const docTemplate = `{
                     "rooms"
                 ],
                 "summary": "Create a new room",
+                "parameters": [
+                    {
+                        "description": "Room configuration (optional)",
+                        "name": "room",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.CreateRoomRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Room created successfully",
                         "schema": {
-                            "$ref": "#/definitions/server.CreateRoomResponse"
+                            "$ref": "#/definitions/internal_server.CreateRoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Room creation conflict",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during room creation",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/rooms/{room_id}": {
+        "/api/rooms/{room_id}": {
             "get": {
-                "description": "Returns room information by ID",
+                "description": "Returns basic room information including client count and status by room ID. Room ID must be between 1 and 999,999,999.",
                 "consumes": [
                     "application/json"
                 ],
@@ -79,11 +113,13 @@ const docTemplate = `{
                 "tags": [
                     "rooms"
                 ],
-                "summary": "Get room info",
+                "summary": "Get room information",
                 "parameters": [
                     {
+                        "maximum": 999999999,
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "Room ID",
+                        "description": "Room ID (1-999999999)",
                         "name": "room_id",
                         "in": "path",
                         "required": true
@@ -91,29 +127,35 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Room information retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/server.RoomResponse"
+                            "$ref": "#/definitions/internal_server.RoomResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid room ID format or out of range",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Room not found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/ws/{room_id}": {
+        "/api/ws/{room_id}": {
             "get": {
-                "description": "Opens WebSocket connection to the specified room",
+                "description": "Opens WebSocket connection to the specified room for real-time chat communication. Supports chat messages, join/leave notifications, and real-time updates.",
                 "produces": [
                     "application/json"
                 ],
@@ -123,18 +165,46 @@ const docTemplate = `{
                 "summary": "Connect to WebSocket room",
                 "parameters": [
                     {
+                        "maximum": 999999999,
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "Room ID",
+                        "description": "Room ID (1-999999999)",
                         "name": "room_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "maxLength": 50,
+                        "minLength": 4,
+                        "type": "string",
+                        "description": "Username for the chat (4-50 characters, defaults to 'Anonymous')",
+                        "name": "username",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "101": {
-                        "description": "Switching Protocols",
+                        "description": "Switching Protocols - WebSocket connection established",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid room ID format, out of range, or invalid username",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_websocket.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_websocket.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during WebSocket upgrade",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_websocket.ErrorResponse"
                         }
                     }
                 }
@@ -142,30 +212,68 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "server.CreateRoomResponse": {
+        "internal_server.CreateRoomRequest": {
+            "description": "Response structure for room creation",
             "type": "object",
             "properties": {
-                "room_id": {
-                    "type": "integer"
+                "description": {
+                    "type": "string",
+                    "example": "A place to chat with friends"
+                },
+                "max_clients": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "name": {
+                    "type": "string",
+                    "example": "My Chat Room"
                 }
             }
         },
-        "server.ErrorResponse": {
+        "internal_server.CreateRoomResponse": {
+            "type": "object",
+            "properties": {
+                "room_id": {
+                    "type": "integer",
+                    "example": 12345
+                }
+            }
+        },
+        "internal_server.ErrorResponse": {
+            "description": "Standard error response structure",
             "type": "object",
             "properties": {
                 "code": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 400
                 },
                 "error": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "invalid_room_id"
                 }
             }
         },
-        "server.RoomResponse": {
+        "internal_server.RoomResponse": {
+            "description": "Response structure for room information",
             "type": "object",
             "properties": {
                 "room_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 12345
+                }
+            }
+        },
+        "pkg_websocket.ErrorResponse": {
+            "description": "WebSocket error response structure",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "error": {
+                    "type": "string",
+                    "example": "invalid_room_id"
                 }
             }
         }
@@ -174,12 +282,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.01",
+	Version:          "1.0.0",
 	Host:             "localhost:8080",
 	BasePath:         "/",
-	Schemes:          []string{},
-	Title:            "Chatter API",
-	Description:      "Realtime chat rooms with WebSocket and REST",
+	Schemes:          []string{"http", "https"},
+	Title:            "Chatters Chat API",
+	Description:      "Real-time chat application API with WebSocket support for instant messaging and room management",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

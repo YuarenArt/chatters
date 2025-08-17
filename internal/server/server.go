@@ -15,17 +15,30 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// CreateRoomResponse represents the response when creating a new room
+// @Description Response structure for room creation
+// CreateRoomRequest represents room creation parameters
+type CreateRoomRequest struct {
+	Name        string `json:"name,omitempty" example:"My Chat Room" description:"Room name (optional)"`
+	Description string `json:"description,omitempty" example:"A place to chat with friends" description:"Room description (optional)"`
+	MaxClients  int    `json:"max_clients,omitempty" example:"50" description:"Maximum number of clients (optional)"`
+}
+
 type CreateRoomResponse struct {
-	RoomID websocket.ID `json:"room_id"`
+	RoomID websocket.ID `json:"room_id" example:"12345" description:"Unique room identifier"`
 }
 
+// RoomResponse represents basic room information
+// @Description Response structure for room information
 type RoomResponse struct {
-	RoomID websocket.ID `json:"room_id"`
+	RoomID websocket.ID `json:"room_id" example:"12345" description:"Unique room identifier"`
 }
 
+// ErrorResponse represents error responses from the API
+// @Description Standard error response structure
 type ErrorResponse struct {
-	Code  int    `json:"code"`
-	Error string `json:"error"`
+	Code  int    `json:"code" example:"400" description:"HTTP status code"`
+	Error string `json:"error" example:"invalid_room_id" description:"Error identifier"`
 }
 
 type Server struct {
@@ -100,11 +113,12 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 
 // Health godoc
 // @Summary Health check
-// @Description Returns server status
+// @Description Returns server health status and basic information
 // @Tags health
 // @Produce json
-// @Success 200 {object} map[string]string
-// @Router api/health [get]
+// @Success 200 {object} map[string]interface{} "Server health information"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/health [get]
 func (s *Server) registerRoutes() {
 	api := s.Engine.Group("/api")
 
@@ -112,11 +126,13 @@ func (s *Server) registerRoutes() {
 	api.POST("/rooms", s.CreateRoom())
 	api.GET("/rooms/:room_id", s.Room())
 
-	s.Engine.GET("api/health", func(c *gin.Context) {
+	// Health and status endpoints
+	s.Engine.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		s.Logger.Log(c.Request.Context(), logging.Debug, "Health check", "status", "ok")
 	})
 
+	// Swagger documentation
 	s.Engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	s.Logger.Log(context.Background(), logging.Debug, "Routes registered")
@@ -149,9 +165,10 @@ func validateRoomID(roomIDStr string) (websocket.ID, error) {
 }
 
 // ValidationError represents validation errors
+// @Description Validation error structure for input validation failures
 type ValidationError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
+	Field   string `json:"field" example:"room_id" description:"Field that failed validation"`
+	Message string `json:"message" example:"room ID out of valid range" description:"Validation error message"`
 }
 
 func (e *ValidationError) Error() string {
@@ -190,14 +207,16 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 
 // CreateRoom godoc
 // @Summary Create a new room
-// @Description Generates and creates a new room with a random ID
+// @Description Generates and creates a new room with a random ID. The room will be immediately available for WebSocket connections. Room IDs are generated randomly between 1 and 999,999,999.
 // @Tags rooms
 // @Accept json
 // @Produce json
-// @Success 201 {object} CreateRoomResponse
-// @Failure 409 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
-// @Router api/rooms [post]
+// @Param room body CreateRoomRequest false "Room configuration (optional)"
+// @Success 201 {object} CreateRoomResponse "Room created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 409 {object} ErrorResponse "Room creation conflict"
+// @Failure 500 {object} ErrorResponse "Internal server error during room creation"
+// @Router /api/rooms [post]
 func (s *Server) CreateRoom() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
@@ -207,6 +226,17 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 			"path", c.Request.URL.Path,
 			"client_ip", c.ClientIP(),
 			"user_agent", c.Request.UserAgent())
+
+		// Parse request body
+		var req CreateRoomRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			s.Logger.Log(ctx, logging.Warn, "Invalid request body", "error", err.Error())
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "invalid_request",
+			})
+			return
+		}
 
 		var roomID websocket.ID
 		var created bool
@@ -229,7 +259,7 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 				"max_retries", maxRetries)
 			c.JSON(http.StatusInternalServerError, ErrorResponse{
 				Code:  http.StatusInternalServerError,
-				Error: "failed to create room after multiple attempts",
+				Error: "room_creation_failed",
 			})
 			return
 		}
@@ -241,16 +271,17 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 }
 
 // Room godoc
-// @Summary Get room info
-// @Description Returns room information by ID
+// @Summary Get room information
+// @Description Returns basic room information including client count and status by room ID. Room ID must be between 1 and 999,999,999.
 // @Tags rooms
 // @Accept json
 // @Produce json
-// @Param room_id path int true "Room ID"
-// @Success 200 {object} RoomResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Router api/rooms/{room_id} [get]
+// @Param room_id path int true "Room ID (1-999999999)" minimum(1) maximum(999999999)
+// @Success 200 {object} RoomResponse "Room information retrieved successfully"
+// @Failure 400 {object} ErrorResponse "Invalid room ID format or out of range"
+// @Failure 404 {object} ErrorResponse "Room not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/rooms/{room_id} [get]
 func (s *Server) Room() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()

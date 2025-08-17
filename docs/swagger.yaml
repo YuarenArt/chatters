@@ -1,71 +1,129 @@
 basePath: /
 definitions:
-  server.CreateRoomResponse:
+  internal_server.CreateRoomRequest:
+    description: Response structure for room creation
     properties:
-      room_id:
+      description:
+        example: A place to chat with friends
+        type: string
+      max_clients:
+        example: 50
         type: integer
-    type: object
-  server.ErrorResponse:
-    properties:
-      code:
-        type: integer
-      error:
+      name:
+        example: My Chat Room
         type: string
     type: object
-  server.RoomResponse:
+  internal_server.CreateRoomResponse:
     properties:
       room_id:
+        example: 12345
         type: integer
+    type: object
+  internal_server.ErrorResponse:
+    description: Standard error response structure
+    properties:
+      code:
+        example: 400
+        type: integer
+      error:
+        example: invalid_room_id
+        type: string
+    type: object
+  internal_server.RoomResponse:
+    description: Response structure for room information
+    properties:
+      room_id:
+        example: 12345
+        type: integer
+    type: object
+  pkg_websocket.ErrorResponse:
+    description: WebSocket error response structure
+    properties:
+      code:
+        example: 400
+        type: integer
+      error:
+        example: invalid_room_id
+        type: string
     type: object
 host: localhost:8080
 info:
-  contact: {}
-  description: Realtime chat rooms with WebSocket and REST
-  title: Chatter API
-  version: "0.01"
+  contact:
+    name: Chatters Development Team
+    url: https://github.com/YuarenArt/chatters
+  description: Real-time chat application API with WebSocket support for instant messaging
+    and room management
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://github.com/YuarenArt/chatters/blob/main/LICENSE
+  title: Chatters Chat API
+  version: 1.0.0
 paths:
-  /health:
+  /api/health:
     get:
-      description: Returns server status
+      description: Returns server health status and basic information
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Server health information
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
       summary: Health check
       tags:
       - health
-  /rooms:
+  /api/rooms:
     post:
       consumes:
       - application/json
-      description: Generates and creates a new room with a random ID
+      description: Generates and creates a new room with a random ID. The room will
+        be immediately available for WebSocket connections. Room IDs are generated
+        randomly between 1 and 999,999,999.
+      parameters:
+      - description: Room configuration (optional)
+        in: body
+        name: room
+        schema:
+          $ref: '#/definitions/internal_server.CreateRoomRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Room created successfully
           schema:
-            $ref: '#/definitions/server.CreateRoomResponse'
+            $ref: '#/definitions/internal_server.CreateRoomResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "409":
-          description: Conflict
+          description: Room creation conflict
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal server error during room creation
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
       summary: Create a new room
       tags:
       - rooms
-  /rooms/{room_id}:
+  /api/rooms/{room_id}:
     get:
       consumes:
       - application/json
-      description: Returns room information by ID
+      description: Returns basic room information including client count and status
+        by room ID. Room ID must be between 1 and 999,999,999.
       parameters:
-      - description: Room ID
+      - description: Room ID (1-999999999)
         in: path
+        maximum: 999999999
+        minimum: 1
         name: room_id
         required: true
         type: integer
@@ -73,37 +131,66 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Room information retrieved successfully
           schema:
-            $ref: '#/definitions/server.RoomResponse'
+            $ref: '#/definitions/internal_server.RoomResponse'
         "400":
-          description: Bad Request
+          description: Invalid room ID format or out of range
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
-          description: Not Found
+          description: Room not found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
-      summary: Get room info
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      summary: Get room information
       tags:
       - rooms
-  /ws/{room_id}:
+  /api/ws/{room_id}:
     get:
-      description: Opens WebSocket connection to the specified room
+      description: Opens WebSocket connection to the specified room for real-time
+        chat communication. Supports chat messages, join/leave notifications, and
+        real-time updates.
       parameters:
-      - description: Room ID
+      - description: Room ID (1-999999999)
         in: path
+        maximum: 999999999
+        minimum: 1
         name: room_id
         required: true
         type: integer
+      - description: Username for the chat (4-50 characters, defaults to 'Anonymous')
+        in: query
+        maxLength: 50
+        minLength: 4
+        name: username
+        type: string
       produces:
       - application/json
       responses:
         "101":
-          description: Switching Protocols
+          description: Switching Protocols - WebSocket connection established
           schema:
             type: string
+        "400":
+          description: Invalid room ID format, out of range, or invalid username
+          schema:
+            $ref: '#/definitions/pkg_websocket.ErrorResponse'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/pkg_websocket.ErrorResponse'
+        "500":
+          description: Internal server error during WebSocket upgrade
+          schema:
+            $ref: '#/definitions/pkg_websocket.ErrorResponse'
       summary: Connect to WebSocket room
       tags:
       - websocket
+schemes:
+- http
+- https
 swagger: "2.0"
