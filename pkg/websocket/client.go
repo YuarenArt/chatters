@@ -15,18 +15,14 @@ const (
 	MaxTextLength  = 1000        // Maximum text length for chat messages
 )
 
-// Message represents a WebSocket message
-// @Description WebSocket message structure for chat communication
 type Message struct {
-	Type string          `json:"type" example:"chat" description:"Message type (chat, join, leave)"`
-	Data json.RawMessage `json:"data" description:"Message payload data"`
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
-// ChatMessage represents a chat message
-// @Description Chat message structure for text communication
 type ChatMessage struct {
-	Text     string `json:"text" example:"Hello, everyone!" description:"Message text content"`
-	Username string `json:"username" example:"john_doe" description:"Username of the message sender"`
+	Text     string `json:"text"`
+	Username string `json:"username"`
 }
 
 type JoinPayload struct {

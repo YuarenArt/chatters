@@ -19,10 +19,9 @@ const (
 )
 
 // ErrorResponse represents error responses
-// @Description WebSocket error response structure
 type ErrorResponse struct {
-	Code  int    `json:"code" example:"400" description:"HTTP status code"`
-	Error string `json:"error" example:"invalid_room_id" description:"Error identifier"`
+	Code  int    `json:"code"`
+	Error string `json:"error"`
 }
 
 type Handler struct {
@@ -59,10 +58,9 @@ func validateUsername(username string) error {
 }
 
 // ValidationError represents validation errors
-// @Description Validation error structure for input validation failures
 type ValidationError struct {
-	Field   string `json:"field" example:"username" description:"Field that failed validation"`
-	Message string `json:"message" example:"username is too short" description:"Validation error message"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }
 
 func (e *ValidationError) Error() string {
@@ -71,16 +69,16 @@ func (e *ValidationError) Error() string {
 
 // HandleWebSocket godoc
 // @Summary Connect to WebSocket room
-// @Description Opens WebSocket connection to the specified room for real-time chat communication. Supports chat messages, join/leave notifications, and real-time updates.
+// @Description Opens WebSocket connection to the specified room
 // @Tags websocket
 // @Produce json
-// @Param room_id path int true "Room ID (1-999999999)" minimum(1) maximum(999999999)
-// @Param username query string false "Username for the chat (4-50 characters, defaults to 'Anonymous')" minlength(4) maxlength(50)
-// @Success 101 {string} string "Switching Protocols - WebSocket connection established"
-// @Failure 400 {object} ErrorResponse "Invalid room ID format, out of range, or invalid username"
-// @Failure 404 {object} ErrorResponse "Room not found"
-// @Failure 500 {object} ErrorResponse "Internal server error during WebSocket upgrade"
-// @Router /api/ws/{room_id} [get]
+// @Param room_id  path  int  true  "Room ID"
+// @Param username query string false "Username for the chat"
+// @Success 101 {string} string  "Switching Protocols"
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router api/ws/{room_id} [get]
 func (h *Handler) HandleWebSocket(c *gin.Context) {
 	roomIDStr := c.Param("room_id")
 
