@@ -17,14 +17,23 @@ definitions:
       room_id:
         type: integer
     type: object
+  websocket.ErrorResponse:
+    properties:
+      code:
+        example: 400
+        type: integer
+      message:
+        example: Invalid request
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
   description: Realtime chat rooms with WebSocket and REST
-  title: Chatter API
-  version: "0.01"
+  title: Chatters API
+  version: 1.0.0
 paths:
-  /health:
+  /api/health:
     get:
       description: Returns server status
       produces:
@@ -39,7 +48,7 @@ paths:
       summary: Health check
       tags:
       - health
-  /rooms:
+  /api/rooms:
     post:
       consumes:
       - application/json
@@ -55,10 +64,14 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
       summary: Create a new room
       tags:
       - rooms
-  /rooms/{room_id}:
+  /api/rooms/{room_id}:
     get:
       consumes:
       - application/json
@@ -89,20 +102,35 @@ paths:
       - rooms
   /ws/{room_id}:
     get:
-      description: Opens WebSocket connection to the specified room
+      description: Opens a WebSocket connection to the specified room. Optionally
+        provide a username.
       parameters:
-      - description: Room ID
+      - description: Room ID (1-999999999)
         in: path
         name: room_id
         required: true
         type: integer
-      produces:
-      - application/json
+      - description: Username for chat. If omitted, 'Anonymous' is used
+        in: query
+        name: username
+        type: string
       responses:
         "101":
-          description: Switching Protocols
+          description: Switching Protocols (WebSocket upgraded)
           schema:
             type: string
+        "400":
+          description: Bad request or validation error
+          schema:
+            $ref: '#/definitions/websocket.ErrorResponse'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/websocket.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/websocket.ErrorResponse'
       summary: Connect to WebSocket room
       tags:
       - websocket

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,10 +19,52 @@ const (
 	DefaultName = "Anonymous"
 )
 
-// ErrorResponse represents error responses
+// Message Base message structure
+// @Description Generic message wrapper for WebSocket communication
+type Message struct {
+	Type string          `json:"type"` // chat, join, leave, etc.
+	Data json.RawMessage `json:"data"`
+}
+
+// ChatMessage Chat message payload
+// @Description Payload for chat messages
+type ChatMessage struct {
+	Text     string `json:"text" example:"Hello world!"`
+	Username string `json:"username" example:"JohnDoe"`
+}
+
+// JoinPayload Join/Leave payloads
+// @Description Payload sent when a user joins or leaves a room
+type JoinPayload struct {
+	Username string `json:"username" example:"JohnDoe"`
+}
+
+// JoinNotification Sent to clients when a user joins
+type JoinNotification struct {
+	Username    string `json:"username" example:"JohnDoe"`
+	OnlineCount int    `json:"onlineCount" example:"5"`
+}
+
+// LeaveNotification Sent to clients when a user leaves
+type LeaveNotification struct {
+	Username    string `json:"username" example:"JohnDoe"`
+	OnlineCount int    `json:"onlineCount" example:"4"`
+}
+
+// ErrorResponse Standard error response
 type ErrorResponse struct {
-	Code  int    `json:"code"`
-	Error string `json:"error"`
+	Code    int    `json:"code" example:"400"`
+	Message string `json:"message" example:"Invalid request"`
+}
+
+// ValidationError Field-specific validation error
+type ValidationError struct {
+	Field   string `json:"field" example:"username"`
+	Message string `json:"message" example:"username is too short"`
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
 }
 
 type Handler struct {
@@ -57,28 +100,17 @@ func validateUsername(username string) error {
 	return nil
 }
 
-// ValidationError represents validation errors
-type ValidationError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
-
 // HandleWebSocket godoc
 // @Summary Connect to WebSocket room
-// @Description Opens WebSocket connection to the specified room
+// @Description Opens a WebSocket connection to the specified room. Optionally provide a username.
 // @Tags websocket
-// @Produce json
-// @Param room_id  path  int  true  "Room ID"
-// @Param username query string false "Username for the chat"
-// @Success 101 {string} string  "Switching Protocols"
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
-// @Router api/ws/{room_id} [get]
+// @Param room_id path int true "Room ID (1-999999999)"
+// @Param username query string false "Username for chat. If omitted, 'Anonymous' is used"
+// @Success 101 {string} string "Switching Protocols (WebSocket upgraded)"
+// @Failure 400 {object} ErrorResponse "Bad request or validation error"
+// @Failure 404 {object} ErrorResponse "Room not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /ws/{room_id} [get]
 func (h *Handler) HandleWebSocket(c *gin.Context) {
 	roomIDStr := c.Param("room_id")
 

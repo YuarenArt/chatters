@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
+        "/api/health": {
             "get": {
                 "description": "Returns server status",
                 "produces": [
@@ -38,7 +38,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/rooms": {
+        "/api/rooms": {
             "post": {
                 "description": "Generates and creates a new room with a random ID",
                 "consumes": [
@@ -63,11 +63,17 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
                     }
                 }
             }
         },
-        "/rooms/{room_id}": {
+        "/api/rooms/{room_id}": {
             "get": {
                 "description": "Returns room information by ID",
                 "consumes": [
@@ -113,10 +119,7 @@ const docTemplate = `{
         },
         "/ws/{room_id}": {
             "get": {
-                "description": "Opens WebSocket connection to the specified room",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Opens a WebSocket connection to the specified room. Optionally provide a username.",
                 "tags": [
                     "websocket"
                 ],
@@ -124,17 +127,41 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Room ID",
+                        "description": "Room ID (1-999999999)",
                         "name": "room_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Username for chat. If omitted, 'Anonymous' is used",
+                        "name": "username",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "101": {
-                        "description": "Switching Protocols",
+                        "description": "Switching Protocols (WebSocket upgraded)",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/websocket.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/websocket.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/websocket.ErrorResponse"
                         }
                     }
                 }
@@ -168,17 +195,30 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "websocket.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Invalid request"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.01",
+	Version:          "1.0.0",
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Chatter API",
+	Title:            "Chatters API",
 	Description:      "Realtime chat rooms with WebSocket and REST",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

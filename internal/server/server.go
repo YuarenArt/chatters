@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/YuarenArt/chatters/internal/logging"
@@ -104,15 +105,16 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 // @Tags health
 // @Produce json
 // @Success 200 {object} map[string]string
-// @Router api/health [get]
+// @Router /api/health [get]
 func (s *Server) registerRoutes() {
+
+	s.Engine.GET("/ws/:room_id", s.Handler.HandleWebSocket)
 	api := s.Engine.Group("/api")
 
-	api.GET("/ws/:room_id", s.Handler.HandleWebSocket)
 	api.POST("/rooms", s.CreateRoom())
 	api.GET("/rooms/:room_id", s.Room())
 
-	s.Engine.GET("api/health", func(c *gin.Context) {
+	s.Engine.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		s.Logger.Log(c.Request.Context(), logging.Debug, "Health check", "status", "ok")
 	})
@@ -197,7 +199,7 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 // @Success 201 {object} CreateRoomResponse
 // @Failure 409 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router api/rooms [post]
+// @Router /api/rooms [post]
 func (s *Server) CreateRoom() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
@@ -250,7 +252,7 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 // @Success 200 {object} RoomResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Router api/rooms/{room_id} [get]
+// @Router /api/rooms/{room_id} [get]
 func (s *Server) Room() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
@@ -294,11 +296,30 @@ func (s *Server) Room() func(c *gin.Context) {
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.Logger.Log(ctx, logging.Info, "Shutting down server")
 
+	var wg sync.WaitGroup
+
 	s.Handler.Hub.Rooms.Range(func(key, value any) bool {
 		room := value.(*websocket.Room)
-		room.StopRoom()
+		wg.Add(1)
+		go func(r *websocket.Room) {
+			defer wg.Done()
+			r.StopRoom()
+		}(room)
 		return true
 	})
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		s.Logger.Log(ctx, logging.Info, "All rooms stopped")
+	case <-time.After(10 * time.Second):
+		s.Logger.Log(ctx, logging.Warn, "Shutdown timeout, some rooms may not have stopped gracefully")
+	}
 
 	s.Handler.Pool.Release()
 	return nil

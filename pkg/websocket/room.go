@@ -33,98 +33,78 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.Register:
-			r.mu.Lock()
-			r.Clients[client] = true
-			r.mu.Unlock()
-
-			r.broadcastJoinNotification(client)
-
+			r.addClient(client)
 		case client := <-r.Unregister:
-			r.mu.Lock()
-			if _, ok := r.Clients[client]; ok {
-				delete(r.Clients, client)
-				close(client.Send)
-			}
-			r.mu.Unlock()
-
-			r.broadcastLeaveNotification(client)
-
+			r.removeClient(client)
 		case msg := <-r.Broadcast:
-			r.mu.RLock()
-			for client := range r.Clients {
-				select {
-				case client.Send <- msg:
-				default:
-					close(client.Send)
-					delete(r.Clients, client)
-				}
-			}
-			r.mu.RUnlock()
+			r.sendMessage(msg)
 		case <-r.Stop:
 			return
 		}
 	}
 }
 
-// broadcastJoinNotification sends a join notification to all clients
-func (r *Room) broadcastJoinNotification(joiningClient *Client) {
-	joinNotification := JoinNotification{
-		Username:    joiningClient.Username,
-		OnlineCount: r.GetClientCount(),
-	}
+func (r *Room) addClient(client *Client) {
+	r.mu.Lock()
+	r.Clients[client] = true
+	r.mu.Unlock()
+	r.broadcastJoinNotification(client)
+}
 
-	joinData, err := json.Marshal(joinNotification)
-	if err != nil {
-		return
+func (r *Room) removeClient(client *Client) {
+	r.mu.Lock()
+	if _, ok := r.Clients[client]; ok {
+		delete(r.Clients, client)
+		close(client.Send)
 	}
+	r.mu.Unlock()
+	r.broadcastLeaveNotification(client)
+}
 
-	joinMsg := Message{
-		Type: "join",
-		Data: joinData,
-	}
-
-	if msgBytes, err := json.Marshal(joinMsg); err == nil {
-		r.mu.RLock()
-		for client := range r.Clients {
-			select {
-			case client.Send <- msgBytes:
-			default:
-			}
+func (r *Room) sendMessage(msg []byte) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for client := range r.Clients {
+		select {
+		case client.Send <- msg:
+		default:
+			close(client.Send)
+			delete(r.Clients, client)
 		}
-		r.mu.RUnlock()
 	}
 }
 
-// broadcastLeaveNotification sends a leave notification to all clients
-func (r *Room) broadcastLeaveNotification(leavingClient *Client) {
-	leaveNotification := LeaveNotification{
-		Username:    leavingClient.Username,
+func (r *Room) broadcastJoinNotification(client *Client) {
+	r.broadcastNotification("join", JoinNotification{
+		Username:    client.Username,
 		OnlineCount: r.GetClientCount(),
-	}
+	})
+}
 
-	leaveData, err := json.Marshal(leaveNotification)
+func (r *Room) broadcastLeaveNotification(client *Client) {
+	r.broadcastNotification("leave", LeaveNotification{
+		Username:    client.Username,
+		OnlineCount: r.GetClientCount(),
+	})
+}
+
+func (r *Room) broadcastNotification(msgType string, payload interface{}) {
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return
 	}
-
-	leaveMsg := Message{
-		Type: "leave",
-		Data: leaveData,
-	}
-
-	if msgBytes, err := json.Marshal(leaveMsg); err == nil {
-		r.mu.RLock()
-		for client := range r.Clients {
-			select {
-			case client.Send <- msgBytes:
-			default:
-			}
+	msg := Message{Type: msgType, Data: data}
+	msgBytes, _ := json.Marshal(msg)
+	r.mu.RLock()
+	for client := range r.Clients {
+		select {
+		case client.Send <- msgBytes:
+		default:
 		}
-		r.mu.RUnlock()
 	}
+	r.mu.RUnlock()
 }
 
-// StopRoom safely stops the room using sync.Once to prevent multiple calls
 func (r *Room) StopRoom() {
 	r.stopOnce.Do(func() {
 		close(r.Stop)
@@ -137,7 +117,6 @@ func (r *Room) StopRoom() {
 	})
 }
 
-// GetClientCount returns the number of clients in the room
 func (r *Room) GetClientCount() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

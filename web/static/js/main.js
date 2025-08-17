@@ -1,7 +1,7 @@
 // Application configuration
 const CONFIG = {
     API_BASE_URL: 'http://localhost:8080/api',
-    WS_BASE_URL: 'ws://localhost:8080/api/ws',
+    WS_BASE_URL: 'ws://localhost:8080/ws',
     RECONNECT_ATTEMPTS: 5,
     RECONNECT_DELAY: 1000,
     MAX_MESSAGE_LENGTH: 1000,
@@ -30,23 +30,13 @@ async function initializeApp() {
                 document.addEventListener('DOMContentLoaded', resolve, { once: true });
             });
         }
-        
-        // Check for required elements
+
         await waitForElements();
-        
-        // Don't initialize widgets here - let app.js handle it
-        // await initializeWidgets();
-        
-        // Bind events
+
         bindGlobalEvents();
-        
-        // Load stored data
         loadStoredData();
-        
-        // Show connection form
         showConnectionForm();
-        
-        // Mark successful initialization
+
         window.ChattersApp.state.isInitialized = true;
         
         console.log('Application successfully initialized');
