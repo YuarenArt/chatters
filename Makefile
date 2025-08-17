@@ -2,7 +2,14 @@ BINARY_NAME=chatters-server
 MAIN=cmd/server/main.go
 LOGS=logs/*.log
 
-.PHONY: all build run clean swagger web test test-cover test-race
+# Default values for load testing
+USERS?=100
+SPAWN_RATE?=10
+HOST?=http://localhost:8080
+RUN_TIME?=10m
+
+
+.PHONY: all build run clean swagger web test test-cover test-race loadtest
 
 all: build
 
@@ -25,5 +32,9 @@ test:
 test-cover:
 	go test -cover ./...
 
+
 test-race:
-	go test -race ./... 
+	go test -race ./...
+
+loadtest:
+	python -m locust -f loadtest/loadtest.py --users $(USERS) --spawn-rate $(SPAWN_RATE) --host $(HOST) --run-time $(RUN_TIME) --web-port 8090
