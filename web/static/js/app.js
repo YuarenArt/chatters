@@ -3,37 +3,29 @@ class ChatApp {
     constructor() {
         this.isInitialized = false;
         this.widgets = {};
+        this.isJoining = false; // Track joining state
         this.init();
     }
 
     async init() {
         try {
             console.log('Initializing ChatApp...');
-            
-            // Wait for DOM to load
+
             if (document.readyState === 'loading') {
                 await new Promise(resolve => {
                     document.addEventListener('DOMContentLoaded', resolve, { once: true });
                 });
             }
-            
-            // Initialize widgets
+
             await this.initializeWidgets();
-            
-            // Bind main events
+
             this.bindMainEvents();
-            
-            // Load data from storage
             this.loadFromStorage();
-            
-            // Show connection form
             this.showConnectionForm();
-            
-            // Mark successful initialization
+
             this.isInitialized = true;
-            
             console.log('ChatApp successfully initialized');
-            
+
         } catch (error) {
             console.error('ChatApp initialization error:', error);
             this.showNotification('Error', 'Failed to start application', 'error');
@@ -42,29 +34,26 @@ class ChatApp {
 
     async initializeWidgets() {
         try {
-            // Wait for widget classes to load
             await this.waitForWidgets();
-            
-            // Create widget instances only if they don't exist
+
             if (typeof CreateRoomWidget === 'function' && !this.widgets.createRoom) {
                 this.widgets.createRoom = new CreateRoomWidget();
                 console.log('CreateRoomWidget created');
             } else if (this.widgets.createRoom) {
                 console.log('CreateRoomWidget already exists');
             }
-            
+
             if (typeof ChatWidget === 'function' && !this.widgets.chat) {
                 this.widgets.chat = new ChatWidget();
                 console.log('ChatWidget created');
             } else if (this.widgets.chat) {
                 console.log('ChatWidget already exists');
             }
-            
-            // Register widgets in global scope
+
             if (window.ChattersApp) {
                 window.ChattersApp.widgets = this.widgets;
             }
-            
+
         } catch (error) {
             console.error('Widget initialization error:', error);
             throw error;
@@ -76,7 +65,7 @@ class ChatApp {
             const timeoutId = setTimeout(() => {
                 reject(new Error('Widgets not loaded within ' + timeout + 'ms'));
             }, timeout);
-            
+
             const checkWidgets = () => {
                 if (typeof CreateRoomWidget === 'function' && typeof ChatWidget === 'function') {
                     clearTimeout(timeoutId);
@@ -85,29 +74,29 @@ class ChatApp {
                     setTimeout(checkWidgets, 100);
                 }
             };
-            
+
             checkWidgets();
         });
     }
 
     bindMainEvents() {
         try {
-            // Main buttons
-            this.bindElementEvent('joinBtn', 'click', () => this.joinRoom());
+            const debouncedJoinRoom = debounce(() => this.joinRoom(), 500);
+
+            this.bindElementEvent('joinBtn', 'click', debouncedJoinRoom);
             this.bindElementEvent('createRoomBtn', 'click', () => this.showCreateRoomModal());
             this.bindElementEvent('newRoomBtn', 'click', () => this.showCreateRoomModal());
 
-            // Handle Enter key in input fields
             this.bindElementEvent('roomId', 'keypress', (e) => {
-                if (e.key === 'Enter') this.joinRoom();
+                if (e.key === 'Enter') debouncedJoinRoom();
             });
 
             this.bindElementEvent('username', 'keypress', (e) => {
-                if (e.key === 'Enter') this.joinRoom();
+                if (e.key === 'Enter') debouncedJoinRoom();
             });
 
             console.log('Main events bound');
-            
+
         } catch (error) {
             console.error('Error binding main events:', error);
         }
@@ -151,7 +140,7 @@ class ChatApp {
         try {
             const connectionForm = document.getElementById('connectionForm');
             const chatRoom = document.getElementById('chatRoom');
-            
+
             if (connectionForm) connectionForm.classList.remove('hidden');
             if (chatRoom) chatRoom.classList.add('hidden');
         } catch (error) {
@@ -172,6 +161,15 @@ class ChatApp {
     }
 
     async joinRoom() {
+        if (this.isJoining) {
+            console.log('Join attempt ignored: already joining');
+            return;
+        }
+
+        this.isJoining = true;
+        const joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) joinBtn.disabled = true; // Disable button
+
         try {
             const roomId = this.getElementValue('roomId');
             const username = this.getElementValue('username');
@@ -183,26 +181,34 @@ class ChatApp {
 
             const maxLength = window.ChattersApp?.config?.MAX_USERNAME_LENGTH || 20;
             if (username.length > maxLength) {
-                this.showNotification('Error', 'Username too long', 'error');
+                this.showNotification('Error', `Username must be less than ${maxLength} characters`, 'error');
+                return;
+            }
+
+            const roomIdNum = parseInt(roomId, 10);
+            if (isNaN(roomIdNum) || roomIdNum <= 0) {
+                this.showNotification('Error', 'Room ID must be a positive number', 'error');
                 return;
             }
 
             this.saveToStorage(username);
 
-            // Check room existence
-            await this.validateRoom(roomId);
+            await this.validateRoom(roomIdNum);
 
-            // Connect to chat
             if (this.widgets.chat) {
-                this.widgets.chat.joinRoom(roomId, username);
+                await this.widgets.chat.joinRoom(roomIdNum, username);
+                this.showNotification('Success', `Joined room ${roomIdNum}`, 'success');
             } else {
                 console.error('ChatWidget not initialized');
-                this.showNotification('Error', 'Chat not ready', 'error');
+                this.showNotification('Error', 'Chat system not ready', 'error');
             }
-            
+
         } catch (error) {
             console.error('Error joining room:', error);
             this.showNotification('Error', error.message || 'Failed to join room', 'error');
+        } finally {
+            this.isJoining = false;
+            if (joinBtn) joinBtn.disabled = false; // Re-enable button
         }
     }
 
@@ -215,11 +221,12 @@ class ChatApp {
         try {
             const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${roomId}`);
             if (!response.ok) {
-                throw new Error('Room not found');
+                const error = await response.json();
+                throw new Error(error.error || 'Room not found');
             }
         } catch (error) {
-            if (error.message === 'Room not found') {
-                throw error;
+            if (error.message.includes('Room not found')) {
+                throw new Error('Room does not exist');
             }
             throw new Error('Failed to connect to server');
         }
@@ -230,7 +237,6 @@ class ChatApp {
             if (window.notificationSystem) {
                 window.notificationSystem.show(title, message, type);
             } else {
-                // Fallback notification
                 console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
             }
         } catch (error) {
@@ -238,7 +244,6 @@ class ChatApp {
         }
     }
 
-    // Methods for external access
     getWidget(widgetName) {
         return this.widgets[widgetName];
     }
@@ -246,6 +251,15 @@ class ChatApp {
     isReady() {
         return this.isInitialized;
     }
+}
+
+// Utility function to debounce events
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
 }
 
 // Global error handlers
@@ -257,5 +271,4 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
 });
 
-// Export class to global scope
-window.ChatApp = ChatApp; 
+window.ChatApp = ChatApp;

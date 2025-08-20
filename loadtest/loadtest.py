@@ -1,56 +1,62 @@
 import json
 import os
+import time
+import traceback
 from locust import HttpUser, task, between, events
 from locust.exception import RescheduleTask
-from locust_plugins.users.socketio import SocketIOUser
-from websocket import WebSocketConnectionClosedException
+from websocket import create_connection, WebSocketConnectionClosedException
 
-# Загружаем конфиг
 config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_config.json")
 with open(config_path, "r") as f:
     config = json.load(f)
 
-class ChatUser(HttpUser, SocketIOUser):
+
+class ChatUser(HttpUser):
     wait_time = between(1, 5)
     host = config["host"]
 
     def on_start(self):
         self.room_id = None
+        self.ws = None
         self.ws_connected = False
 
-        # Создаем комнату
         for endpoint in config["endpoints"]:
             if endpoint["name"] == "create_room":
                 try:
                     response = self.client.post(endpoint["path"], json=endpoint["body"])
                     if response.status_code == 201:
                         self.room_id = response.json().get("room_id")
-                        print(f"Room created: {self.room_id}")
+                        print(f"[INFO] Room created: {self.room_id}")
                     else:
-                        print(f"Failed to create room: {response.status_code}")
+                        print(f"[ERROR] Failed to create room: {response.status_code}, body={response.text}")
                 except Exception as e:
-                    print(f"Error creating room: {e}")
+                    print(f"[EXCEPTION] Error creating room: {e}")
+                    traceback.print_exc()
                 break
 
-        # Подключаемся к WebSocket, если комната создана
         if self.room_id:
             ws_endpoint = next((e for e in config["endpoints"] if e["name"] == "websocket_chat"), None)
             if ws_endpoint:
                 ws_path = ws_endpoint["path"].format(room_id=self.room_id)
-                # Исправляем формирование ws_url, убираем лишний символ ':'
-                ws_url = f"ws{self.host[4:]}{ws_path}"  # ws://localhost:8080/api/ws/{room_id}
+                ws_url = f"ws{self.host[4:]}{ws_path}"
                 username = ws_endpoint["username"].format(id=self.environment.runner.user_count)
+
                 try:
-                    print(f"Connecting to WebSocket: {ws_url}?username={username}")
-                    # Передаем username как параметр query
-                    self.connect(f"{ws_url}?username={username}")
+                    print(f"[INFO] Connecting to WebSocket: {ws_url}?username={username}")
+                    self.ws = create_connection(f"{ws_url}?username={username}")
                     self.ws_connected = True
-                    print("WebSocket connected successfully")
+                    print("[INFO] WebSocket connected successfully")
+
+                    # Сразу читаем приветственное сообщение от сервера
+                    initial_msg = self.ws.recv()
+                    print(f"[DEBUG] Initial WS message: {initial_msg}")
+
                 except Exception as e:
-                    print(f"WebSocket connection failed: {e}")
+                    print(f"[ERROR] WebSocket connection failed: {e}")
+                    traceback.print_exc()
                     self.ws_connected = False
 
-    @task(2)
+    @task(1)
     def health_check(self):
         endpoint = next(e for e in config["endpoints"] if e["name"] == "health_check")
         try:
@@ -58,24 +64,10 @@ class ChatUser(HttpUser, SocketIOUser):
             if response.status_code >= 400:
                 raise Exception(f"Health check failed: {response.status_code}")
         except Exception as e:
-            print(f"Error executing health_check: {e}")
+            print(f"[ERROR] Error executing health_check: {e}")
             raise RescheduleTask()
 
-    @task(1)
-    def create_room(self):
-        endpoint = next(e for e in config["endpoints"] if e["name"] == "create_room")
-        try:
-            response = self.client.post(endpoint["path"], json=endpoint["body"])
-            if response.status_code == 201:
-                self.room_id = response.json().get("room_id")
-                print(f"Room created: {self.room_id}")
-            else:
-                raise Exception(f"Failed to create room: {response.status_code}")
-        except Exception as e:
-            print(f"Error executing create_room: {e}")
-            raise RescheduleTask()
-
-    @task(1)
+    @task(15)
     def get_room_info(self):
         endpoint = next(e for e in config["endpoints"] if e["name"] == "get_room_info")
         path = endpoint["path"]
@@ -83,46 +75,57 @@ class ChatUser(HttpUser, SocketIOUser):
             if not self.room_id:
                 raise RescheduleTask()
             path = path.format(room_id=self.room_id)
+
         try:
             response = self.client.get(path)
             if response.status_code >= 400:
                 raise Exception(f"Get room info failed: {response.status_code}")
         except Exception as e:
-            print(f"Error executing get_room_info: {e}")
+            print(f"[ERROR] Error executing get_room_info: {e}")
             raise RescheduleTask()
 
-    @task(5)
+    @task(40)
     def websocket_chat(self):
         if not self.room_id or not self.ws_connected:
             raise RescheduleTask()
 
         ws_endpoint = next(e for e in config["endpoints"] if e["name"] == "websocket_chat")
-        username = ws_endpoint["username"].format(id=self.environment.runner.user_count)
+
         for msg in ws_endpoint["messages"]:
-            content = msg["content"].format(room_id=self.room_id, id=self.environment.runner.user_count)
+            text_template = msg["data"]["text"]
+            text = text_template.format(room_id=self.room_id, id=self.environment.runner.user_count)
+
             payload = {
                 "type": msg["type"],
-                "content": content,
-                "username": username
+                "data": {
+                    "text": text,
+                    "username": msg["data"]["username"].format(id=self.environment.runner.user_count)
+                }
             }
+
             try:
-                self.send(json.dumps(payload))
-                print(f"Sent WebSocket message: {payload}")
-                self.receive()  # Опционально: ожидаем ответа от сервера
+                self.ws.send(json.dumps(payload))
+                print(f"[SEND] {payload}")
+
+                # Ждём ответ
+                reply = self.ws.recv()
+                print(f"[RECV] {reply}")
+
             except WebSocketConnectionClosedException as e:
-                print(f"WebSocket connection closed: {e}")
+                print(f"[WARN] WebSocket connection closed: {e}")
                 self.ws_connected = False
                 raise RescheduleTask()
             except Exception as e:
-                print(f"Error sending WebSocket message: {e}")
+                print(f"[ERROR] Error sending WS message: {e}")
+                traceback.print_exc()
                 raise RescheduleTask()
 
     def on_stop(self):
-        if self.ws_connected:
+        if self.ws_connected and self.ws:
             try:
-                self.disconnect()
-                print("WebSocket disconnected")
+                self.ws.close()
+                print("[INFO] WebSocket disconnected")
             except Exception as e:
-                print(f"Error disconnecting WebSocket: {e}")
+                print(f"[ERROR] Error disconnecting WebSocket: {e}")
             finally:
                 self.ws_connected = False

@@ -55,7 +55,9 @@ func (r *Room) removeClient(client *Client) {
 	r.mu.Lock()
 	if _, ok := r.Clients[client]; ok {
 		delete(r.Clients, client)
-		close(client.Send)
+		client.closeOnce.Do(func() {
+			close(client.Send)
+		})
 	}
 	r.mu.Unlock()
 	r.broadcastLeaveNotification(client)
@@ -68,8 +70,14 @@ func (r *Room) sendMessage(msg []byte) {
 		select {
 		case client.Send <- msg:
 		default:
-			close(client.Send)
+			client.closeOnce.Do(func() {
+				close(client.Send)
+			})
+			r.mu.RUnlock()
+			r.mu.Lock()
 			delete(r.Clients, client)
+			r.mu.Unlock()
+			r.mu.RLock()
 		}
 	}
 }
@@ -95,14 +103,15 @@ func (r *Room) broadcastNotification(msgType string, payload interface{}) {
 	}
 	msg := Message{Type: msgType, Data: data}
 	msgBytes, _ := json.Marshal(msg)
+
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	for client := range r.Clients {
 		select {
 		case client.Send <- msgBytes:
 		default:
 		}
 	}
-	r.mu.RUnlock()
 }
 
 func (r *Room) StopRoom() {
@@ -111,7 +120,9 @@ func (r *Room) StopRoom() {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		for client := range r.Clients {
-			close(client.Send)
+			client.closeOnce.Do(func() {
+				close(client.Send)
+			})
 			client.Conn.Close()
 		}
 	})

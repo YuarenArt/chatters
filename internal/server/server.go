@@ -49,6 +49,9 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
+	metrics := NewMetrics()
+	engine.Use(metrics.PrometheusMiddleware())
+
 	// Add CORS middleware
 	engine.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -80,6 +83,7 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 	})
 
 	engine.Use(APILoggerMiddleware(apiLogger))
+	engine.GET("/metrics", metrics.MetricsHandler())
 
 	s := &Server{
 		Handler: handler,

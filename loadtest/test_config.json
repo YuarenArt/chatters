@@ -1,23 +1,23 @@
 {
   "host": "http://localhost:8080",
   "requests_per_minute": 120,
-  "users": 1000,
+  "users": 10000,
   "spawn_rate": 50,
   "websocket_message_rate": 10,
-  "max_rooms": 10,
-  "max_users_per_room": 100,
+  "max_rooms": 1000,
+  "max_users_per_room": 1000,
   "endpoints": [
     {
       "method": "GET",
       "path": "/api/health",
       "name": "health_check",
-      "weight": 2
+      "weight": 1
     },
     {
       "method": "POST",
       "path": "/api/rooms",
       "name": "create_room",
-      "weight": 1,
+      "weight": 5,
       "body": {
         "name": "TestRoom_{id}",
         "description": "A test chat room {id}",
@@ -28,17 +28,29 @@
       "method": "GET",
       "path": "/api/rooms/{room_id}",
       "name": "get_room_info",
-      "weight": 1
+      "weight": 15
     },
     {
       "method": "WEBSOCKET",
-      "path": "/api/ws/{room_id}",
+      "path": "/ws/{room_id}",
       "name": "websocket_chat",
-      "weight": 5,
+      "weight": 40,
       "username": "TestUser_{id}",
       "messages": [
-        {"type": "chat_message", "content": "Hello, room {room_id}!"},
-        {"type": "chat_message", "content": "Test message {id}"}
+        {
+          "type": "chat_message",
+          "data": {
+            "text": "Hello, room {room_id}!",
+            "username": "TestUser_{id}"
+          }
+        },
+        {
+          "type": "chat_message",
+          "data": {
+            "text": "Test message {id}",
+            "username": "TestUser_{id}"
+          }
+        }
       ]
     }
   ]

@@ -176,8 +176,7 @@ class CreateRoomWidget {
             if (roomIdInput) {
                 roomIdInput.value = this.currentRoomId;
                 this.hideCreateRoomModal();
-                
-                // Show connection form
+
                 if (window.ChattersApp.utils) {
                     window.ChattersApp.utils.showConnectionForm();
                 }
@@ -195,7 +194,6 @@ class CreateRoomWidget {
             if (window.notificationSystem) {
                 window.notificationSystem.show(title, message, type);
             } else {
-                // Fallback notification
                 console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
             }
         } catch (error) {

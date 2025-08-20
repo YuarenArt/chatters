@@ -1,4 +1,3 @@
-// Chat widget
 class ChatWidget {
     constructor() {
         this.ws = null;
@@ -19,15 +18,16 @@ class ChatWidget {
             console.log('ChatWidget initialized');
         } catch (error) {
             console.error('ChatWidget initialization error:', error);
+            this.showNotification('Error', 'Failed to initialize chat', 'error');
         }
     }
 
     bindEvents() {
-        // Bind events only after DOM is fully loaded
         this.waitForElements().then(() => {
             this.attachEventListeners();
         }).catch(error => {
             console.error('Failed to bind ChatWidget events:', error);
+            this.showNotification('Error', 'Failed to bind chat events', 'error');
         });
     }
 
@@ -40,7 +40,7 @@ class ChatWidget {
             'currentRoomId',
             'onlineCount'
         ];
-        
+
         for (const elementId of requiredElements) {
             await this.waitForElement(elementId);
         }
@@ -53,11 +53,11 @@ class ChatWidget {
                 resolve(element);
                 return;
             }
-            
+
             const timeoutId = setTimeout(() => {
                 reject(new Error(`Element #${elementId} not found within ${timeout}ms`));
             }, timeout);
-            
+
             const observer = new MutationObserver((mutations, obs) => {
                 const element = document.getElementById(elementId);
                 if (element) {
@@ -66,7 +66,7 @@ class ChatWidget {
                     resolve(element);
                 }
             });
-            
+
             observer.observe(document.body, {
                 childList: true,
                 subtree: true
@@ -83,11 +83,12 @@ class ChatWidget {
             if (leaveBtn) {
                 leaveBtn.addEventListener('click', () => this.leaveRoom());
             }
-            
+
             if (sendBtn) {
                 sendBtn.addEventListener('click', () => this.sendMessage());
+                sendBtn.disabled = !this.isConnected;
             }
-            
+
             if (messageInput) {
                 messageInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -95,31 +96,42 @@ class ChatWidget {
                         this.sendMessage();
                     }
                 });
+                messageInput.disabled = !this.isConnected;
             }
 
             console.log('ChatWidget events bound');
         } catch (error) {
             console.error('Error binding ChatWidget events:', error);
+            this.showNotification('Error', 'Failed to bind chat events', 'error');
         }
     }
 
-    joinRoom(roomId, username) {
+    async joinRoom(roomId, username) {
         try {
             if (!roomId || !username) {
                 throw new Error('Room ID or username not specified');
             }
 
+            if (this.isConnected && this.currentRoom === roomId && this.username === username) {
+                this.showNotification('Info', 'Already connected to this room', 'info');
+                return;
+            }
+
+            if (this.ws && this.isConnected) {
+                this.leaveRoom();
+            }
+
             this.currentRoom = roomId;
             this.username = username;
-            this.connectWebSocket(roomId, username);
-            console.log('Connecting to room:', roomId, 'as', username);
+            await this.connectWebSocket(roomId, username);
+            console.log('Joining room:', roomId, 'as', username);
         } catch (error) {
             console.error('Error joining room:', error);
-            this.showNotification('Error', error.message, 'error');
+            this.showNotification('Error', error.message || 'Failed to join room', 'error');
         }
     }
 
-    connectWebSocket(roomId, username) {
+    async connectWebSocket(roomId, username) {
         try {
             const wsUrl = `${window.ChattersApp.config.WS_BASE_URL}/${roomId}?username=${encodeURIComponent(username)}`;
             console.log('Connecting to WebSocket:', wsUrl);
@@ -130,11 +142,13 @@ class ChatWidget {
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 this.showChatRoom();
-                
+
                 const roomIdElement = document.getElementById('currentRoomId');
                 if (roomIdElement) {
                     roomIdElement.textContent = roomId;
                 }
+
+                this.updateUIState();
 
                 this.showNotification('Connected!', `You joined room #${roomId}`, 'success');
                 console.log('WebSocket connected');
@@ -146,19 +160,23 @@ class ChatWidget {
                     this.handleMessage(message);
                 } catch (error) {
                     console.error('Error parsing message:', error);
+                    this.showNotification('Error', 'Invalid message received', 'error');
                 }
             };
 
             this.ws.onclose = (event) => {
                 this.isConnected = false;
+                this.updateUIState();
                 console.log('WebSocket closed:', event.code, event.reason);
-                
+
                 if (!event.wasClean) {
                     this.handleReconnect();
                 }
             };
 
             this.ws.onerror = (error) => {
+                this.isConnected = false;
+                this.updateUIState();
                 console.error('WebSocket error:', error);
                 this.showNotification('Error', 'Chat connection error', 'error');
             };
@@ -180,7 +198,7 @@ class ChatWidget {
                 }
             }, this.reconnectDelay * this.reconnectAttempts);
         } else {
-            this.showNotification('Error', 'Failed to reconnect. Check your connection.', 'error');
+            this.showNotification('Error', 'Failed to reconnect. Please try again.', 'error');
             this.leaveRoom();
         }
     }
@@ -188,7 +206,7 @@ class ChatWidget {
     handleMessage(message) {
         try {
             console.log('WebSocket message received:', message);
-            
+
             switch (message.type) {
                 case 'chat':
                     console.log('Processing chat message:', message.data);
@@ -206,13 +224,17 @@ class ChatWidget {
                     break;
                 case 'error':
                     console.log('Processing error message:', message.data);
-                    this.showNotification('Error', message.data.message, 'error');
+                    this.showNotification('Error', message.data.message || 'Server error', 'error');
+                    if (message.data.message.includes('username already taken')) {
+                        this.leaveRoom();
+                    }
                     break;
                 default:
                     console.log('Unknown message type:', message);
             }
         } catch (error) {
             console.error('Error handling message:', error);
+            this.showNotification('Error', 'Failed to process message', 'error');
         }
     }
 
@@ -220,11 +242,6 @@ class ChatWidget {
         try {
             const messagesContainer = document.getElementById('chatMessages');
             if (!messagesContainer) return;
-
-            // Debug: log the message data
-            console.log('Message received:', data);
-            console.log('Current user:', this.username);
-            console.log('Comparison:', data.username, '===', this.username, '=', data.username === this.username);
 
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${data.username === this.username ? 'own' : ''}`;
@@ -248,6 +265,7 @@ class ChatWidget {
             this.scrollToBottom();
         } catch (error) {
             console.error('Error adding chat message:', error);
+            this.showNotification('Error', 'Failed to display message', 'error');
         }
     }
 
@@ -264,6 +282,7 @@ class ChatWidget {
             this.scrollToBottom();
         } catch (error) {
             console.error('Error adding system message:', error);
+            this.showNotification('Error', 'Failed to display system message', 'error');
         }
     }
 
@@ -281,15 +300,17 @@ class ChatWidget {
     sendMessage() {
         try {
             const input = document.getElementById('messageInput');
-            if (!input) return;
+            if (!input || !this.isConnected) {
+                this.showNotification('Error', 'Not connected to chat', 'error');
+                return;
+            }
 
             const text = input.value.trim();
-
-            if (!text || !this.isConnected) return;
+            if (!text) return;
 
             const maxLength = window.ChattersApp?.config?.MAX_MESSAGE_LENGTH || 1000;
             if (text.length > maxLength) {
-                this.showNotification('Error', 'Message too long', 'error');
+                this.showNotification('Error', `Message must be less than ${maxLength} characters`, 'error');
                 return;
             }
 
@@ -311,6 +332,7 @@ class ChatWidget {
         try {
             if (this.ws) {
                 this.ws.close(1000, 'User left');
+                this.ws = null;
             }
 
             this.isConnected = false;
@@ -319,9 +341,14 @@ class ChatWidget {
 
             const messagesContainer = document.getElementById('chatMessages');
             const messageInput = document.getElementById('messageInput');
-            
+            const sendBtn = document.getElementById('sendBtn');
+
             if (messagesContainer) messagesContainer.innerHTML = '';
-            if (messageInput) messageInput.value = '';
+            if (messageInput) {
+                messageInput.value = '';
+                messageInput.disabled = true;
+            }
+            if (sendBtn) sendBtn.disabled = true;
 
             if (window.ChattersApp?.utils) {
                 window.ChattersApp.utils.showConnectionForm();
@@ -331,6 +358,7 @@ class ChatWidget {
             console.log('User left room');
         } catch (error) {
             console.error('Error leaving room:', error);
+            this.showNotification('Error', 'Failed to leave room', 'error');
         }
     }
 
@@ -338,7 +366,9 @@ class ChatWidget {
         try {
             if (this.ws) {
                 this.ws.close(1000, 'Page unload');
+                this.ws = null;
             }
+            this.isConnected = false;
             console.log('WebSocket disconnected on page unload');
         } catch (error) {
             console.error('Error disconnecting WebSocket:', error);
@@ -349,14 +379,15 @@ class ChatWidget {
         try {
             const connectionForm = document.getElementById('connectionForm');
             const chatRoom = document.getElementById('chatRoom');
-            
+
             if (connectionForm) connectionForm.classList.add('hidden');
             if (chatRoom) chatRoom.classList.remove('hidden');
-            
+
             const messageInput = document.getElementById('messageInput');
             if (messageInput) messageInput.focus();
         } catch (error) {
             console.error('Error showing chat:', error);
+            this.showNotification('Error', 'Failed to show chat room', 'error');
         }
     }
 
@@ -382,12 +413,23 @@ class ChatWidget {
         }
     }
 
+    updateUIState() {
+        try {
+            const sendBtn = document.getElementById('sendBtn');
+            const messageInput = document.getElementById('messageInput');
+
+            if (sendBtn) sendBtn.disabled = !this.isConnected;
+            if (messageInput) messageInput.disabled = !this.isConnected;
+        } catch (error) {
+            console.error('Error updating UI state:', error);
+        }
+    }
+
     showNotification(title, message, type = 'info') {
         try {
             if (window.notificationSystem) {
                 window.notificationSystem.show(title, message, type);
             } else {
-                // Fallback notification
                 console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
             }
         } catch (error) {
@@ -396,5 +438,4 @@ class ChatWidget {
     }
 }
 
-// Export class to global scope (no auto-initialization)
 window.ChatWidget = ChatWidget;

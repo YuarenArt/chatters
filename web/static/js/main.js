@@ -8,7 +8,6 @@ const CONFIG = {
     MAX_USERNAME_LENGTH: 20
 };
 
-// Global application variables
 window.ChattersApp = {
     config: CONFIG,
     widgets: {},
@@ -19,7 +18,6 @@ window.ChattersApp = {
     }
 };
 
-// Main initialization function
 async function initializeApp() {
     try {
         console.log('Initializing Chatters application...');
@@ -92,14 +90,10 @@ function waitForElement(elementId, timeout = 5000) {
 
 // Bind global events
 function bindGlobalEvents() {
-    // Error handling
+
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    
-    // Page close handling
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    // Page visibility handling
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     console.log('Global events bound');
@@ -127,10 +121,8 @@ function handleBeforeUnload(event) {
 // Handle page visibility change
 function handleVisibilityChange() {
     if (document.hidden) {
-        // Page is hidden - can pause some operations
         console.log('Page hidden');
     } else {
-        // Page is visible again
         console.log('Page visible');
     }
 }

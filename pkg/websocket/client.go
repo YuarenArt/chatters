@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -10,15 +11,16 @@ import (
 
 const (
 	readDeadline   = 5 * time.Minute
-	MaxMessageSize = 1024 * 1024 // 1MB
+	MaxMessageSize = 1 * 1024 * 1024 // 1MB
 	MaxTextLength  = 1000
 )
 
 type Client struct {
-	Conn     *websocket.Conn
-	Send     chan []byte
-	Room     *Room
-	Username string
+	Conn      *websocket.Conn
+	Send      chan []byte
+	Room      *Room
+	Username  string
+	closeOnce sync.Once
 }
 
 // Read reads messages from WebSocket connection

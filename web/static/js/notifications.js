@@ -31,12 +31,10 @@ class NotificationSystem {
             // Add to tracking list
             this.notifications.push(notification);
 
-            // Auto-remove
             setTimeout(() => {
                 this.hide(notification);
             }, duration);
 
-            // Appearance animation
             requestAnimationFrame(() => {
                 notification.style.opacity = '1';
                 notification.style.transform = 'translateX(0)';
@@ -68,7 +66,6 @@ class NotificationSystem {
             </div>
         `;
 
-        // Initial styles for animation
         notification.style.opacity = '0';
         notification.style.transform = 'translateX(100%)';
         notification.style.transition = 'all 0.3s ease';
@@ -142,7 +139,6 @@ class NotificationSystem {
         }
     }
 
-    // Quick access methods
     success(title, message, duration) {
         this.show(title, message, 'success', duration);
     }
@@ -160,7 +156,6 @@ class NotificationSystem {
     }
 }
 
-// Create global notification system instance only if it doesn't exist
 if (!window.notificationSystem) {
     window.notificationSystem = new NotificationSystem();
     console.log('Global notification system created');
@@ -168,5 +163,4 @@ if (!window.notificationSystem) {
     console.log('Notification system already exists, using existing instance');
 }
 
-// Export class
 window.NotificationSystem = NotificationSystem; 
