@@ -16,10 +16,11 @@ import (
 
 type RoomTestSuite struct {
 	suite.Suite
-	room   *Room
-	server *httptest.Server
-	wsConn *websocket.Conn
-	wg     sync.WaitGroup
+	room      *Room
+	server    *httptest.Server
+	wsConn    *websocket.Conn
+	wg        sync.WaitGroup
+	signaling *SignalingHandler
 }
 
 func (s *RoomTestSuite) SetupTest() {
@@ -42,8 +43,7 @@ func (s *RoomTestSuite) SetupTest() {
 			Username: "testuser",
 		}
 		s.room.Register <- client
-
-		// Start client goroutines
+		s.signaling = NewSignalingHandler()
 		go client.Read()
 		go client.Write()
 	})

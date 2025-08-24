@@ -68,9 +68,10 @@ func (e *ValidationError) Error() string {
 }
 
 type Handler struct {
-	Hub      *Hub
-	Upgrader websocket.Upgrader
-	Pool     *TaskPool
+	Hub              *Hub
+	Upgrader         websocket.Upgrader
+	Pool             *TaskPool
+	SignalingHandler *SignalingHandler
 }
 
 func NewHandler(hub *Hub, pool *TaskPool) *Handler {
@@ -82,6 +83,7 @@ func NewHandler(hub *Hub, pool *TaskPool) *Handler {
 			WriteBufferSize: 1024,
 			CheckOrigin:     func(r *http.Request) bool { return true },
 		},
+		SignalingHandler: NewSignalingHandler(),
 	}
 }
 

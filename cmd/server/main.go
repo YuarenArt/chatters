@@ -15,7 +15,7 @@ import (
 )
 
 // @title           Chatters API
-// @version         1.0.0
+// @version         1.0.1
 // @description     Realtime chat rooms with WebSocket and REST
 // @BasePath        /
 // @host            localhost:8080
@@ -28,7 +28,7 @@ func main() {
 		panic("Failed to initialize logger: " + err.Error())
 	}
 
-	taskPool, err := websocket.NewTaskPool(100)
+	taskPool, err := websocket.NewTaskPool(1000)
 	if err != nil {
 		logger.Error(ctx, "Failed to initialize task pool", "error", err.Error())
 		panic("Failed to initialize task pool: " + err.Error())

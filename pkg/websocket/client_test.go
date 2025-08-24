@@ -16,12 +16,13 @@ import (
 
 type ClientTestSuite struct {
 	suite.Suite
-	room     *Room
-	client   *Client
-	server   *httptest.Server
-	wsConn   *websocket.Conn
-	taskPool *TaskPool
-	wg       sync.WaitGroup
+	room      *Room
+	client    *Client
+	server    *httptest.Server
+	wsConn    *websocket.Conn
+	taskPool  *TaskPool
+	wg        sync.WaitGroup
+	signaling *SignalingHandler
 }
 
 func (s *ClientTestSuite) SetupTest() {
@@ -50,7 +51,7 @@ func (s *ClientTestSuite) SetupTest() {
 			Username: "testuser",
 		}
 		s.room.Register <- s.client
-
+		s.signaling = NewSignalingHandler()
 		s.NoError(s.taskPool.Submit(func() { s.client.Read() }))
 		s.NoError(s.taskPool.Submit(func() { s.client.Write() }))
 	})

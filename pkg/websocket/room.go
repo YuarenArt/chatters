@@ -133,3 +133,21 @@ func (r *Room) GetClientCount() int {
 	defer r.mu.RUnlock()
 	return len(r.Clients)
 }
+
+func (r *Room) sendExcept(sender *Client, msg []byte) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for client := range r.Clients {
+		if client == sender {
+			continue
+		}
+		select {
+		case client.Send <- msg:
+		default:
+			client.closeOnce.Do(func() {
+				close(client.Send)
+			})
+			delete(r.Clients, client)
+		}
+	}
+}
