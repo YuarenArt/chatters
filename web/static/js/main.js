@@ -21,7 +21,7 @@ window.ChattersApp = {
 async function initializeApp() {
     try {
         console.log('Initializing Chatters application...');
-        
+
         // Wait for DOM to load
         if (document.readyState === 'loading') {
             await new Promise(resolve => {
@@ -36,9 +36,9 @@ async function initializeApp() {
         showConnectionForm();
 
         window.ChattersApp.state.isInitialized = true;
-        
+
         console.log('Application successfully initialized');
-        
+
     } catch (error) {
         console.error('Application initialization error:', error);
         showGlobalError('Initialization Error', 'Failed to start application');
@@ -49,11 +49,11 @@ async function initializeApp() {
 async function waitForElements() {
     const requiredElements = [
         'connectionForm',
-        'chatRoom', 
+        'chatRoom',
         'createRoomModal',
         'notifications'
     ];
-    
+
     for (const elementId of requiredElements) {
         await waitForElement(elementId);
     }
@@ -67,11 +67,11 @@ function waitForElement(elementId, timeout = 5000) {
             resolve(element);
             return;
         }
-        
+
         const timeoutId = setTimeout(() => {
             reject(new Error(`Element #${elementId} not found within ${timeout}ms`));
         }, timeout);
-        
+
         const observer = new MutationObserver((mutations, obs) => {
             const element = document.getElementById(elementId);
             if (element) {
@@ -80,7 +80,7 @@ function waitForElement(elementId, timeout = 5000) {
                 resolve(element);
             }
         });
-        
+
         observer.observe(document.body, {
             childList: true,
             subtree: true
@@ -95,7 +95,7 @@ function bindGlobalEvents() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     console.log('Global events bound');
 }
 
@@ -148,7 +148,7 @@ function loadStoredData() {
 function showConnectionForm() {
     const connectionForm = document.getElementById('connectionForm');
     const chatRoom = document.getElementById('chatRoom');
-    
+
     if (connectionForm) connectionForm.classList.remove('hidden');
     if (chatRoom) chatRoom.classList.add('hidden');
 }

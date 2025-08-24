@@ -47,17 +47,20 @@
                 </div>
             </div>
         </div>
+
+        <!-- Chat room template container -->
         <div id="chatRoom" class="chat-room hidden"></div>
     </main>
+
     <div id="notifications" class="notifications"></div>
     <div id="createRoomModal" class="modal hidden"></div>
 </div>
 
 <!-- Templates -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Chat room template
-    const chatTemplate = `
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chat room template (includes file upload button and transfer panel)
+        const chatTemplate = `
         <div id="chatRoom" class="chat-room hidden">
             <div class="chat-header">
                 <div class="room-info">
@@ -67,25 +70,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span id="onlineCount">0</span> online
                     </span>
                 </div>
-                <button id="leaveBtn" class="btn btn-outline">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Leave
-                </button>
+                <div class="chat-header-actions">
+                    <button id="uploadFileBtn" class="btn btn-outline" title="Upload file">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <button id="leaveBtn" class="btn btn-outline">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Leave
+                    </button>
+                </div>
             </div>
             <div class="chat-messages" id="chatMessages"></div>
             <div class="chat-input">
                 <div class="input-wrapper">
-                    <label for="messageInput"></label><input type="text" id="messageInput" placeholder="Type your message..." maxlength="1000">
+                    <label for="messageInput"></label>
+                    <input type="text" id="messageInput" placeholder="Type your message..." maxlength="1000">
                     <button id="sendBtn" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Hidden file input used for selecting file -->
+            <input type="file" id="fileInput" class="hidden" />
+
+            <!-- File transfers panel -->
+            <div id="fileTransfersPanel" class="file-transfers-panel">
+                <h4>Available files</h4>
+                <ul id="availableFilesList"></ul>
+                <h4>Transfers</h4>
+                <ul id="activeTransfersList"></ul>
+            </div>
         </div>
     `;
-    
-    // Create room modal template
-    const createRoomTemplate = `
+
+        // Create room modal template (unchanged)
+        const createRoomTemplate = `
         <div id="createRoomModal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
@@ -113,19 +133,19 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     `;
-    
-    // Replace existing containers
-    const chatRoomContainer = document.getElementById('chatRoom');
-    const createRoomModalContainer = document.getElementById('createRoomModal');
-    
-    if (chatRoomContainer) {
-        chatRoomContainer.outerHTML = chatTemplate;
-    }
-    
-    if (createRoomModalContainer) {
-        createRoomModalContainer.outerHTML = createRoomTemplate;
-    }
-});
+
+        // Replace existing containers
+        const chatRoomContainer = document.getElementById('chatRoom');
+        const createRoomModalContainer = document.getElementById('createRoomModal');
+
+        if (chatRoomContainer) {
+            chatRoomContainer.outerHTML = chatTemplate;
+        }
+
+        if (createRoomModalContainer) {
+            createRoomModalContainer.outerHTML = createRoomTemplate;
+        }
+    });
 </script>
 
 <!-- Load scripts in correct order -->
@@ -137,10 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Initialize application -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Create and initialize main application
-    window.chatApp = new ChatApp();
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create and initialize main application
+        window.chatApp = new ChatApp();
+    });
 </script>
 </body>
-</html> 
+</html>
