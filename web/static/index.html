@@ -48,19 +48,6 @@
             </div>
         </div>
 
-        <!-- Chat room template container -->
-        <div id="chatRoom" class="chat-room hidden"></div>
-    </main>
-
-    <div id="notifications" class="notifications"></div>
-    <div id="createRoomModal" class="modal hidden"></div>
-</div>
-
-<!-- Templates -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Chat room template (includes file upload button and transfer panel)
-        const chatTemplate = `
         <div id="chatRoom" class="chat-room hidden">
             <div class="chat-header">
                 <div class="room-info">
@@ -83,82 +70,53 @@
             <div class="chat-messages" id="chatMessages"></div>
             <div class="chat-input">
                 <div class="input-wrapper">
-                    <label for="messageInput"></label>
                     <input type="text" id="messageInput" placeholder="Type your message..." maxlength="1000">
                     <button id="sendBtn" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
             </div>
-
-            <!-- Hidden file input used for selecting file -->
             <input type="file" id="fileInput" class="hidden" />
-
-            <!-- File transfers panel -->
-            <div id="fileTransfersPanel" class="file-transfers-panel">
-                <h4>Available files</h4>
-                <ul id="availableFilesList"></ul>
-                <h4>Transfers</h4>
-                <ul id="activeTransfersList"></ul>
-            </div>
         </div>
-    `;
+    </main>
 
-        // Create room modal template (unchanged)
-        const createRoomTemplate = `
-        <div id="createRoomModal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Create New Room</h3>
-                    <button id="closeModalBtn" class="btn btn-icon">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p>A new room will be created with a unique ID. Share this ID with friends to chat together.</p>
-                    <div class="room-id-display">
-                        <span>Room ID: </span>
-                        <strong id="newRoomId">...</strong>
-                        <button id="copyRoomIdBtn" class="btn btn-outline btn-sm">
-                            <i class="fas fa-copy"></i>
-                            Copy
-                        </button>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="joinNewRoomBtn" class="btn btn-primary">
-                        Join Room
+    <div id="notifications" class="notifications"></div>
+    <div id="createRoomModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Room</h3>
+                <button id="closeModalBtn" class="btn btn-icon">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>A new room will be created with a unique ID. Share this ID with friends to chat together.</p>
+                <div class="room-id-display">
+                    <span>Room ID: </span>
+                    <strong id="newRoomId">...</strong>
+                    <button id="copyRoomIdBtn" class="btn btn-outline btn-sm">
+                        <i class="fas fa-copy"></i>
+                        Copy
                     </button>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button id="joinNewRoomBtn" class="btn btn-primary">
+                    Join Room
+                </button>
+            </div>
         </div>
-    `;
+    </div>
+</div>
 
-        // Replace existing containers
-        const chatRoomContainer = document.getElementById('chatRoom');
-        const createRoomModalContainer = document.getElementById('createRoomModal');
-
-        if (chatRoomContainer) {
-            chatRoomContainer.outerHTML = chatTemplate;
-        }
-
-        if (createRoomModalContainer) {
-            createRoomModalContainer.outerHTML = createRoomTemplate;
-        }
-    });
-</script>
-
-<!-- Load scripts in correct order -->
 <script src="/static/js/main.js"></script>
 <script src="/static/js/notifications.js"></script>
 <script src="/static/js/create-room.js"></script>
 <script src="/static/js/chat.js"></script>
 <script src="/static/js/app.js"></script>
 
-<!-- Initialize application -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Create and initialize main application
+    document.addEventListener('DOMContentLoaded', () => {
         window.chatApp = new ChatApp();
     });
 </script>
