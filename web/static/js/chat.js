@@ -10,8 +10,13 @@ class FileTransferManager {
         this.availableFiles = new Map();
         this.transfers = new Map();
         this.peerConns = new Map();
-        this.iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-        this.chunkSize = 256 * 1024;
+        this.iceConfig = {
+            iceServers: [
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+            ]
+        };
+        this.chunkSize = 128 * 1024;
     }
 
     generateId() {
@@ -194,14 +199,31 @@ class FileTransferManager {
 
     setupOwnerDataChannel(dc, transferId, requester, key) {
         dc.binaryType = 'arraybuffer';
+        dc.bufferedAmountLowThreshold = 64 * 1024;
         dc.onopen = async () => {
             const entry = this.peerConns.get(key);
             if (!entry || !entry.file) return;
             const file = entry.file;
             const meta = JSON.stringify({ type: 'file-meta', filename: file.name, filesize: file.size, mime: file.type });
-            dc.send(meta);
+            try {
+                dc.send(meta);
+            } catch (err) {
+                console.error('Failed to send metadata:', err);
+                this.ui.showNotification?.('Error', 'Failed to start file transfer', 'error');
+                this.cleanupPeer(transferId, requester, key);
+                return;
+            }
             const reader = new FileReader();
             let offset = 0;
+
+            const waitForBuffer = () => new Promise((resolve) => {
+                if (dc.bufferedAmount <= dc.bufferedAmountLowThreshold) {
+                    resolve();
+                } else {
+                    dc.onbufferedamountlow = () => resolve();
+                }
+            });
+
             while (offset < file.size) {
                 const slice = file.slice(offset, offset + this.chunkSize);
                 const buf = await new Promise((resolve, reject) => {
@@ -209,16 +231,37 @@ class FileTransferManager {
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(slice);
                 });
-                dc.send(buf);
-                offset += this.chunkSize;
-                if (this.ui.onTransferProgress) this.ui.onTransferProgress(transferId, offset / file.size, 'sending', requester);
-                await new Promise(r => setTimeout(r, 10));
+                try {
+                    await waitForBuffer(); // Ждем, пока буфер освободится
+                    dc.send(buf);
+                    offset += this.chunkSize;
+                    if (this.ui.onTransferProgress) {
+                        this.ui.onTransferProgress(transferId, offset / file.size, 'sending', requester);
+                    }
+                } catch (err) {
+                    console.error('Failed to send chunk:', err, 'bufferedAmount:', dc.bufferedAmount);
+                    this.ui.showNotification?.('Error', 'File transfer failed: send queue full', 'error');
+                    this.cleanupPeer(transferId, requester, key);
+                    return;
+                }
             }
-            dc.send(JSON.stringify({ type: 'file-end' }));
-            if (this.ui.onTransferProgress) this.ui.onTransferProgress(transferId, 1, 'completed', requester);
+            try {
+                dc.send(JSON.stringify({ type: 'file-end' }));
+                if (this.ui.onTransferProgress) {
+                    this.ui.onTransferProgress(transferId, 1, 'completed', requester);
+                }
+            } catch (err) {
+                console.error('Failed to send file-end:', err);
+                this.ui.showNotification?.('Error', 'Failed to complete file transfer', 'error');
+                this.cleanupPeer(transferId, requester, key);
+            }
         };
         dc.onclose = () => this.cleanupPeer(transferId, requester, key);
-        dc.onerror = (ev) => console.error('DataChannel error (owner):', ev);
+        dc.onerror = (ev) => {
+            console.error('DataChannel error (owner):', ev, 'bufferedAmount:', dc.bufferedAmount);
+            this.ui.showNotification?.('Error', 'Data channel error during transfer', 'error');
+            this.cleanupPeer(transferId, requester, key);
+        };
     }
 
     setupReceiverDataChannel(dc, transferId, owner, key) {
