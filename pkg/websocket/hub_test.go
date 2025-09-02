@@ -16,7 +16,7 @@ func (s *HubTestSuite) SetupTest() {
 }
 
 func (s *HubTestSuite) TestCreateRoom() {
-	room, created := s.hub.CreateRoom(1)
+	room, created := s.hub.CreateRoom(1, nil)
 	s.True(created)
 	s.NotNil(room)
 	s.Equal(ID(1), room.ID)
@@ -31,7 +31,7 @@ func (s *HubTestSuite) TestGetNonExistentRoom() {
 }
 
 func (s *HubTestSuite) TestDeleteRoom() {
-	s.hub.CreateRoom(1)
+	s.hub.CreateRoom(1, nil)
 	s.True(s.hub.DeleteRoom(1))
 	_, exists := s.hub.GetRoom(1)
 	s.False(exists)

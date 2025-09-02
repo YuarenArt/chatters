@@ -24,7 +24,7 @@ type RoomTestSuite struct {
 }
 
 func (s *RoomTestSuite) SetupTest() {
-	s.room = NewRoom(1)
+	s.room = NewRoom(1, nil)
 	go s.room.Run()
 
 	gin.SetMode(gin.TestMode)

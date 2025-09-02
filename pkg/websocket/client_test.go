@@ -26,7 +26,7 @@ type ClientTestSuite struct {
 }
 
 func (s *ClientTestSuite) SetupTest() {
-	s.room = NewRoom(1)
+	s.room = NewRoom(1, nil)
 	go s.room.Run()
 
 	var err error

@@ -53,7 +53,7 @@ func (s *HandlerTestSuite) TestHandleWebSocketRoomNotFound() {
 }
 
 func (s *HandlerTestSuite) TestHandleWebSocketValidUsername() {
-	s.hub.CreateRoom(1)
+	s.hub.CreateRoom(1, nil)
 
 	server := httptest.NewServer(s.engine)
 	defer server.Close()
