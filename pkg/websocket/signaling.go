@@ -34,7 +34,6 @@ func (s *SignalingHandler) Handle(c *Client, msg Message) {
 	}
 }
 
-// Utility: must marshal
 func mustMarshal(v interface{}) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {

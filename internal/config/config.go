@@ -9,8 +9,9 @@ import (
 // Config содержит настройки сервера, базы данных и клиента
 // Теперь включает APIURL для client
 type Config struct {
-	Port      string
-	JWTSecret string
+	Port         string
+	JWTSecret    string
+	TaskPoolSize string
 }
 
 var (
@@ -20,12 +21,12 @@ var (
 )
 
 // NewConfig загружает конфигурацию из окружения или флагов
-// Использует sync.Once для thread-safe singleton pattern
 func NewConfig() *Config {
 	once.Do(func() {
 		instance = &Config{
-			Port:      configValue("PORT", "port", "8080", "HTTP server port"),
-			JWTSecret: configValue("SECRET_KEY", "jwt-secret", "supersecret", "JWT secret key"),
+			Port:         configValue("PORT", "port", "8080", "HTTP server port"),
+			JWTSecret:    configValue("SECRET_KEY", "jwt-secret", "supersecret", "JWT secret key"),
+			TaskPoolSize: configValue("TASK_POOL_SIZE", "task-pool-size", "1000", "size of task pool"),
 		}
 	})
 	return instance

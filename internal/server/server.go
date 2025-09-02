@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -128,9 +129,37 @@ func (s *Server) registerRoutes() {
 	s.Logger.Log(context.Background(), logging.Debug, "Routes registered")
 }
 
+// Run starts HTTP server with graceful shutdown support.
 func (s *Server) Run(ctx context.Context) error {
 	s.Logger.Log(ctx, logging.Info, "Starting server", "addr", s.Addr)
-	return s.Engine.Run(s.Addr)
+
+	srv := &http.Server{
+		Addr:              s.Addr,
+		Handler:           s.Engine,
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      20 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	s.Logger.Log(ctx, logging.Info, "Shutting down HTTP server gracefully")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		s.Logger.Log(ctx, logging.Error, "HTTP shutdown error", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (s *Server) Use(ctx context.Context, mw ...gin.HandlerFunc) {
