@@ -2,10 +2,15 @@ package websocket
 
 import (
 	"encoding/json"
+	"strconv"
 	"sync"
 )
 
 type ID uint32
+
+type MetricsNotifier interface {
+	DroppedMessage(roomID string, clientID string)
+}
 
 type Room struct {
 	ID         ID
@@ -16,9 +21,10 @@ type Room struct {
 	Stop       chan struct{}
 	stopOnce   sync.Once
 	mu         sync.RWMutex
+	Metrics    MetricsNotifier
 }
 
-func NewRoom(id ID) *Room {
+func NewRoom(id ID, metrics MetricsNotifier) *Room {
 	return &Room{
 		ID:         id,
 		Clients:    make(map[*Client]bool),
@@ -26,6 +32,7 @@ func NewRoom(id ID) *Room {
 		Unregister: make(chan *Client),
 		Broadcast:  make(chan []byte),
 		Stop:       make(chan struct{}),
+		Metrics:    metrics,
 	}
 }
 
@@ -78,6 +85,10 @@ func (r *Room) sendMessage(msg []byte) {
 			delete(r.Clients, client)
 			r.mu.Unlock()
 			r.mu.RLock()
+
+			if r.Metrics != nil {
+				r.Metrics.DroppedMessage(strconv.Itoa(int(r.ID)), client.Username)
+			}
 		}
 	}
 }

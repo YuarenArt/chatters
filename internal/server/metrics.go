@@ -12,6 +12,7 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
+// Metrics holds Prometheus metrics for HTTP and WebSocket monitoring
 type Metrics struct {
 	RequestDuration *prometheus.HistogramVec
 	RequestCounter  *prometheus.CounterVec
@@ -24,6 +25,7 @@ type Metrics struct {
 	stopChan        chan struct{}
 }
 
+// NewMetrics initializes and registers all metrics
 func NewMetrics() *Metrics {
 	m := &Metrics{
 		RequestDuration: prometheus.NewHistogramVec(
@@ -71,7 +73,6 @@ func NewMetrics() *Metrics {
 		stopChan: make(chan struct{}),
 	}
 
-	// Регистрация всех метрик в Prometheus
 	prometheus.MustRegister(
 		m.Goroutines,
 		m.MemoryAlloc,
@@ -83,13 +84,12 @@ func NewMetrics() *Metrics {
 		m.WSMessages,
 	)
 
-	// Фоновое обновление runtime метрик каждые 5 секунд
 	go m.startRuntimeMetricsUpdater(5 * time.Second)
 
 	return m
 }
 
-// Middleware для Gin, собирает HTTP метрики
+// PrometheusMiddleware collects HTTP metrics for each request
 func (m *Metrics) PrometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -107,7 +107,7 @@ func (m *Metrics) PrometheusMiddleware() gin.HandlerFunc {
 	}
 }
 
-// Handler для /metrics
+// MetricsHandler returns a handler for Prometheus metrics endpoint
 func (m *Metrics) MetricsHandler() gin.HandlerFunc {
 	h := promhttp.Handler()
 	return func(c *gin.Context) {
@@ -115,7 +115,7 @@ func (m *Metrics) MetricsHandler() gin.HandlerFunc {
 	}
 }
 
-// Обновление runtime метрик
+// UpdateRuntimeMetrics updates runtime metrics like memory, goroutines, and CPU usage
 func (m *Metrics) UpdateRuntimeMetrics() {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
@@ -124,7 +124,6 @@ func (m *Metrics) UpdateRuntimeMetrics() {
 	m.MemoryAlloc.Set(float64(mem.Alloc))
 	m.HeapAlloc.Set(float64(mem.HeapAlloc))
 
-	// CPU usage
 	p, err := process.NewProcess(int32(os.Getpid()))
 	if err == nil {
 		if percent, err := p.CPUPercent(); err == nil {
@@ -133,7 +132,7 @@ func (m *Metrics) UpdateRuntimeMetrics() {
 	}
 }
 
-// Фоновый обновлятор метрик
+// startRuntimeMetricsUpdater periodically updates runtime metrics
 func (m *Metrics) startRuntimeMetricsUpdater(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -147,7 +146,12 @@ func (m *Metrics) startRuntimeMetricsUpdater(interval time.Duration) {
 	}
 }
 
-// Остановка фонового обновления
+// DroppedMessage increments WebSocket dropped message counter
+func (m *Metrics) DroppedMessage(roomID string, clientID string) {
+	m.WSMessages.WithLabelValues("dropped").Inc()
+}
+
+// Stop stops runtime metrics updater
 func (m *Metrics) Stop() {
 	close(m.stopChan)
 }

@@ -36,6 +36,7 @@ type Server struct {
 	Addr       string
 	Middleware []gin.HandlerFunc
 	Logger     logging.Logger
+	Metrics    *Metrics
 }
 
 // Validation constants
@@ -91,6 +92,7 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 		Engine:  engine,
 		Addr:    addr,
 		Logger:  serverLogger,
+		Metrics: metrics,
 	}
 
 	s.registerRoutes()
@@ -253,7 +255,7 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 				continue
 			}
 
-			_, created = s.Handler.Hub.CreateRoom(roomID)
+			_, created = s.Handler.Hub.CreateRoom(roomID, s.Metrics)
 			if created {
 				break
 			}
