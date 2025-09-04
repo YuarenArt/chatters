@@ -53,9 +53,12 @@ const (
 	MinRoomID = 1         // Minimum room ID value
 )
 
-// hashPassword hashes a password using bcrypt
+// hashPassword hashes a password using bcrypt with optimized cost for performance
 func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// Using cost 4 for better performance during testing/development
+	// DefaultCost (10) is too expensive for high-load scenarios
+	const bcryptCost = 4
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	return string(bytes), err
 }
 

@@ -26,7 +26,7 @@ func NewConfig() *Config {
 		instance = &Config{
 			Port:         configValue("PORT", "port", "8080", "HTTP server port"),
 			JWTSecret:    configValue("SECRET_KEY", "jwt-secret", "supersecret", "JWT secret key"),
-			TaskPoolSize: configValue("TASK_POOL_SIZE", "task-pool-size", "1000", "size of task pool"),
+			TaskPoolSize: configValue("TASK_POOL_SIZE", "task-pool-size", "10000", "size of task pool"),
 		}
 	})
 	return instance

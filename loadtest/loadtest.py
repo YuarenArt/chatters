@@ -17,33 +17,54 @@ class ChatUser(HttpUser):
 
     def on_start(self):
         self.room_id = None
+        self.host_token = None
+        self.room_password = None
         self.ws = None
         self.ws_connected = False
+        self.is_host = False
 
-        for endpoint in config["endpoints"]:
-            if endpoint["name"] == "create_room":
-                try:
-                    response = self.client.post(endpoint["path"], json=endpoint["body"])
-                    if response.status_code == 201:
-                        self.room_id = response.json().get("room_id")
-                        print(f"[INFO] Room created: {self.room_id}")
-                    else:
-                        print(f"[ERROR] Failed to create room: {response.status_code}, body={response.text}")
-                except Exception as e:
-                    print(f"[EXCEPTION] Error creating room: {e}")
-                    traceback.print_exc()
-                break
+        # Попробуем создать комнату с паролем или без
+        create_endpoints = [e for e in config["endpoints"] if e["name"] in ["create_room", "create_room_no_password"]]
+        for endpoint in create_endpoints:
+            try:
+                response = self.client.post(endpoint["path"], json=endpoint["body"])
+                if response.status_code == 201:
+                    data = response.json()
+                    self.room_id = data.get("room_id")
+                    self.host_token = data.get("host_token")
+                    self.is_host = True
+                    if "password" in endpoint["body"]:
+                        self.room_password = endpoint["body"]["password"]
+                    print(f"[INFO] Room created: {self.room_id}, host: {self.is_host}, password: {bool(self.room_password)}")
+                    break
+                else:
+                    print(f"[ERROR] Failed to create room: {response.status_code}, body={response.text}")
+            except Exception as e:
+                print(f"[EXCEPTION] Error creating room: {e}")
+                traceback.print_exc()
 
         if self.room_id:
-            ws_endpoint = next((e for e in config["endpoints"] if e["name"] == "websocket_chat"), None)
+            # Выбираем подходящий WebSocket endpoint в зависимости от наличия пароля
+            ws_endpoint_name = "websocket_chat" if self.room_password else "websocket_chat_no_password"
+            ws_endpoint = next((e for e in config["endpoints"] if e["name"] == ws_endpoint_name), None)
+            
             if ws_endpoint:
                 ws_path = ws_endpoint["path"].format(room_id=self.room_id)
                 ws_url = f"ws{self.host[4:]}{ws_path}"
                 username = ws_endpoint["username"].format(id=self.environment.runner.user_count)
+                
+                # Формируем параметры подключения
+                params = [f"username={username}"]
+                if self.room_password and "password" in ws_endpoint:
+                    params.append(f"password={self.room_password}")
+                if self.host_token and "host_token" in ws_endpoint:
+                    params.append(f"host_token={self.host_token}")
+                
+                full_ws_url = f"{ws_url}?{'&'.join(params)}"
 
                 try:
-                    print(f"[INFO] Connecting to WebSocket: {ws_url}?username={username}")
-                    self.ws = create_connection(f"{ws_url}?username={username}")
+                    print(f"[INFO] Connecting to WebSocket: {full_ws_url}")
+                    self.ws = create_connection(full_ws_url)
                     self.ws_connected = True
                     print("[INFO] WebSocket connected successfully")
 
@@ -80,16 +101,69 @@ class ChatUser(HttpUser):
             response = self.client.get(path)
             if response.status_code >= 400:
                 raise Exception(f"Get room info failed: {response.status_code}")
+            else:
+                room_info = response.json()
+                print(f"[DEBUG] Room info: {room_info}")
         except Exception as e:
             print(f"[ERROR] Error executing get_room_info: {e}")
             raise RescheduleTask()
+
+    @task(8)
+    def validate_password(self):
+        if not self.room_id or not self.room_password:
+            raise RescheduleTask()
+            
+        endpoint = next((e for e in config["endpoints"] if e["name"] == "validate_password"), None)
+        if not endpoint:
+            raise RescheduleTask()
+            
+        path = endpoint["path"].format(room_id=self.room_id)
+        
+        try:
+            response = self.client.post(path, json=endpoint["body"])
+            if response.status_code >= 400:
+                raise Exception(f"Password validation failed: {response.status_code}")
+            else:
+                result = response.json()
+                print(f"[DEBUG] Password validation: {result}")
+        except Exception as e:
+            print(f"[ERROR] Error validating password: {e}")
+            raise RescheduleTask()
+
+    @task(2)
+    def change_password(self):
+        if not self.room_id or not self.host_token or not self.is_host:
+            raise RescheduleTask()
+            
+        endpoint = next((e for e in config["endpoints"] if e["name"] == "change_password"), None)
+        if not endpoint:
+            raise RescheduleTask()
+            
+        path = endpoint["path"].format(room_id=self.room_id)
+        headers = {k: v.format(host_token=self.host_token) for k, v in endpoint["headers"].items()}
+        
+        try:
+            response = self.client.put(path, json=endpoint["body"], headers=headers)
+            if response.status_code >= 400:
+                raise Exception(f"Change password failed: {response.status_code}")
+            else:
+                print(f"[DEBUG] Password changed successfully")
+        except Exception as e:
+            print(f"[ERROR] Error changing password: {e}")
+            raise RescheduleTask()
+
 
     @task(40)
     def websocket_chat(self):
         if not self.room_id or not self.ws_connected:
             raise RescheduleTask()
 
-        ws_endpoint = next(e for e in config["endpoints"] if e["name"] == "websocket_chat")
+        # Выбираем подходящий endpoint в зависимости от типа комнаты
+        ws_endpoint_name = "websocket_chat" if self.room_password else "websocket_chat_no_password"
+        ws_endpoint = next((e for e in config["endpoints"] if e["name"] == ws_endpoint_name), None)
+        
+        if not ws_endpoint:
+            raise RescheduleTask()
 
         for msg in ws_endpoint["messages"]:
             text_template = msg["data"]["text"]
@@ -98,8 +172,7 @@ class ChatUser(HttpUser):
             payload = {
                 "type": msg["type"],
                 "data": {
-                    "text": text,
-                    "username": msg["data"]["username"].format(id=self.environment.runner.user_count)
+                    "text": text
                 }
             }
 

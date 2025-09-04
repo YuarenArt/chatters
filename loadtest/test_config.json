@@ -17,12 +17,17 @@
       "method": "POST",
       "path": "/api/rooms",
       "name": "create_room",
-      "weight": 5,
+      "weight": 3,
       "body": {
-        "name": "TestRoom_{id}",
-        "description": "A test chat room {id}",
-        "max_clients": 100
+        "password": "testpass123"
       }
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms",
+      "name": "create_room_no_password",
+      "weight": 3,
+      "body": {}
     },
     {
       "method": "GET",
@@ -31,24 +36,69 @@
       "weight": 15
     },
     {
+      "method": "POST",
+      "path": "/api/rooms/{room_id}/validate-password",
+      "name": "validate_password",
+      "weight": 5,
+      "body": {
+        "password": "testpass123"
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/rooms/{room_id}/password",
+      "name": "change_password",
+      "weight": 2,
+      "headers": {
+        "Authorization": "{host_token}"
+      },
+      "body": {
+        "new_password": "newpass456"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/{room_id}",
+      "name": "delete_room",
+      "weight": 1,
+      "headers": {
+        "Authorization": "{host_token}"
+      }
+    },
+    {
       "method": "WEBSOCKET",
       "path": "/ws/{room_id}",
       "name": "websocket_chat",
       "weight": 40,
       "username": "TestUser_{id}",
+      "password": "testpass123",
+      "host_token": "{host_token}",
       "messages": [
         {
-          "type": "chat_message",
+          "type": "chat",
           "data": {
-            "text": "Hello, room {room_id}!",
-            "username": "TestUser_{id}"
+            "text": "Hello, room {room_id}!"
           }
         },
         {
-          "type": "chat_message",
+          "type": "chat",
           "data": {
-            "text": "Test message {id}",
-            "username": "TestUser_{id}"
+            "text": "Test message {id}"
+          }
+        }
+      ]
+    },
+    {
+      "method": "WEBSOCKET",
+      "path": "/ws/{room_id}",
+      "name": "websocket_chat_no_password",
+      "weight": 15,
+      "username": "TestUser_{id}",
+      "messages": [
+        {
+          "type": "chat",
+          "data": {
+            "text": "Hello from public room!"
           }
         }
       ]
