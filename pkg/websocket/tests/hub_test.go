@@ -1,25 +1,26 @@
-package websocket
+package websocket_test
 
 import (
 	"testing"
 
+	"github.com/YuarenArt/chatters/pkg/websocket"
 	"github.com/stretchr/testify/suite"
 )
 
 type HubTestSuite struct {
 	suite.Suite
-	hub *Hub
+	hub *websocket.Hub
 }
 
 func (s *HubTestSuite) SetupTest() {
-	s.hub = NewHub()
+	s.hub = websocket.NewHub()
 }
 
 func (s *HubTestSuite) TestCreateRoom() {
 	room, created := s.hub.CreateRoom(1, nil)
 	s.True(created)
 	s.NotNil(room)
-	s.Equal(ID(1), room.ID)
+	s.Equal(websocket.ID(1), room.ID)
 
 	_, exists := s.hub.GetRoom(1)
 	s.True(exists)

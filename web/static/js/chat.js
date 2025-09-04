@@ -425,25 +425,32 @@ class ChatWidget {
         }
     }
 
-    async joinRoom(roomId, username) {
+    async joinRoom(roomId, username, password = '', hostToken = '') {
         try {
             if (!roomId || !username) throw new Error('Room ID or username not specified');
             if (this.isConnected) this.leaveRoom();
             this.currentRoom = roomId;
             this.username = username;
-            await this.connectWebSocket(roomId, username);
+            this.hostToken = hostToken;
+            await this.connectWebSocket(roomId, username, password, hostToken);
         } catch (error) {
             console.error('Join room error:', error);
             this.showNotification('Error', error.message || 'Failed to join room', 'error');
         }
     }
 
-    async connectWebSocket(roomId, username) {
+    async connectWebSocket(roomId, username, password = '', hostToken = '') {
         if (typeof RTCPeerConnection === 'undefined') {
             throw new Error('WebRTC not supported');
         }
         try {
-            const wsUrl = `${window.ChattersApp.config.WS_BASE_URL}/${roomId}?username=${encodeURIComponent(username)}`;
+            let wsUrl = `${window.ChattersApp.config.WS_BASE_URL}/${roomId}?username=${encodeURIComponent(username)}`;
+            if (password) {
+                wsUrl += `&password=${encodeURIComponent(password)}`;
+            }
+            if (hostToken) {
+                wsUrl += `&host_token=${encodeURIComponent(hostToken)}`;
+            }
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
@@ -452,6 +459,14 @@ class ChatWidget {
                 this.showChatRoom();
                 const roomIdElement = document.getElementById('currentRoomId');
                 if (roomIdElement) roomIdElement.textContent = roomId;
+                
+                // Show host controls if user has host token
+                const hostControls = document.getElementById('hostControls');
+                if (hostControls && hostToken) {
+                    hostControls.style.display = 'block';
+                    this.bindHostControls();
+                }
+                
                 this.updateUIState();
                 if (typeof Worker !== 'undefined') {
                     this.transferWorker = new Worker('/static/js/worker.js');
@@ -494,6 +509,11 @@ class ChatWidget {
             this.ws.onclose = (event) => {
                 this.isConnected = false;
                 this.updateUIState();
+                
+                // Hide host controls on disconnect
+                const hostControls = document.getElementById('hostControls');
+                if (hostControls) hostControls.style.display = 'none';
+                
                 if (!event.wasClean) this.handleReconnect();
             };
 
@@ -514,7 +534,9 @@ class ChatWidget {
             this.reconnectAttempts++;
             const delay = this.reconnectDelayBase * Math.pow(2, this.reconnectAttempts - 1);
             setTimeout(() => {
-                if (this.currentRoom && this.username) this.connectWebSocket(this.currentRoom, this.username);
+                if (this.currentRoom && this.username) {
+                    this.connectWebSocket(this.currentRoom, this.username, this.roomPassword, this.hostToken);
+                }
             }, delay);
         } else {
             this.showNotification('Error', 'Reconnect failed', 'error');
@@ -672,7 +694,14 @@ class ChatWidget {
             this.ws = null;
             this.isConnected = false;
             this.currentRoom = null;
+            this.hostToken = null;
+            this.roomPassword = null;
             this.reconnectAttempts = 0;
+            
+            // Hide host controls
+            const hostControls = document.getElementById('hostControls');
+            if (hostControls) hostControls.style.display = 'none';
+            
             const messagesContainer = document.getElementById('chatMessages');
             if (messagesContainer) messagesContainer.innerHTML = '';
             const messageInput = document.getElementById('messageInput');
@@ -733,6 +762,150 @@ class ChatWidget {
     updateOnlineCount(count) {
         const onlineCountElement = document.getElementById('onlineCount');
         if (onlineCountElement) onlineCountElement.textContent = count || 0;
+    }
+
+    bindHostControls() {
+        try {
+            const manageBtn = document.getElementById('manageRoomBtn');
+            if (manageBtn) {
+                manageBtn.addEventListener('click', () => this.showRoomManageModal());
+            }
+        } catch (error) {
+            console.error('Error binding host controls:', error);
+        }
+    }
+
+    showRoomManageModal() {
+        try {
+            const modal = document.getElementById('roomManageModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                this.bindManageModalEvents();
+            }
+        } catch (error) {
+            console.error('Error showing manage modal:', error);
+        }
+    }
+
+    bindManageModalEvents() {
+        try {
+            const closeBtn = document.getElementById('closeManageModalBtn');
+            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            const kickUserBtn = document.getElementById('kickUserBtn');
+            const deleteRoomBtn = document.getElementById('deleteRoomBtn');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.hideRoomManageModal());
+            }
+
+            if (changePasswordBtn) {
+                changePasswordBtn.addEventListener('click', () => this.changeRoomPassword());
+            }
+
+            if (kickUserBtn) {
+                kickUserBtn.addEventListener('click', () => this.kickUser());
+            }
+
+            if (deleteRoomBtn) {
+                deleteRoomBtn.addEventListener('click', () => this.deleteRoom());
+            }
+        } catch (error) {
+            console.error('Error binding manage modal events:', error);
+        }
+    }
+
+    hideRoomManageModal() {
+        try {
+            const modal = document.getElementById('roomManageModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error hiding manage modal:', error);
+        }
+    }
+
+    async changeRoomPassword() {
+        try {
+            const newPassword = document.getElementById('newPassword')?.value || '';
+            
+            const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${this.currentRoom}/password`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': this.hostToken
+                },
+                body: JSON.stringify({ new_password: newPassword })
+            });
+
+            if (response.ok) {
+                this.showNotification('Success', 'Room password changed', 'success');
+                document.getElementById('newPassword').value = '';
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to change password');
+            }
+        } catch (error) {
+            console.error('Change password error:', error);
+            this.showNotification('Error', error.message || 'Failed to change password', 'error');
+        }
+    }
+
+    async kickUser() {
+        try {
+            const username = document.getElementById('kickUsername')?.value?.trim();
+            if (!username) {
+                this.showNotification('Error', 'Please enter username to kick', 'error');
+                return;
+            }
+
+            const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${this.currentRoom}/kick`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': this.hostToken
+                },
+                body: JSON.stringify({ username })
+            });
+
+            if (response.ok) {
+                this.showNotification('Success', `User ${username} kicked`, 'success');
+                document.getElementById('kickUsername').value = '';
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to kick user');
+            }
+        } catch (error) {
+            console.error('Kick user error:', error);
+            this.showNotification('Error', error.message || 'Failed to kick user', 'error');
+        }
+    }
+
+    async deleteRoom() {
+        try {
+            if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
+                return;
+            }
+
+            const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${this.currentRoom}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': this.hostToken
+                }
+            });
+
+            if (response.ok) {
+                this.showNotification('Success', 'Room deleted', 'success');
+                this.hideRoomManageModal();
+                this.leaveRoom();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete room');
+            }
+        } catch (error) {
+            console.error('Delete room error:', error);
+            this.showNotification('Error', error.message || 'Failed to delete room', 'error');
+        }
     }
 }
 

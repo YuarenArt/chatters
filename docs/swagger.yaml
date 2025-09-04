@@ -1,7 +1,21 @@
 basePath: /
 definitions:
+  server.ChangePasswordRequest:
+    properties:
+      new_password:
+        example: newpassword456
+        type: string
+    type: object
+  server.CreateRoomRequest:
+    properties:
+      password:
+        example: mypassword123
+        type: string
+    type: object
   server.CreateRoomResponse:
     properties:
+      host_token:
+        type: string
       room_id:
         type: integer
     type: object
@@ -12,10 +26,28 @@ definitions:
       error:
         type: string
     type: object
+  server.KickUserRequest:
+    properties:
+      username:
+        example: john_doe
+        type: string
+    type: object
   server.RoomResponse:
     properties:
+      client_count:
+        type: integer
+      has_password:
+        type: boolean
+      host_id:
+        type: string
       room_id:
         type: integer
+    type: object
+  server.ValidatePasswordRequest:
+    properties:
+      password:
+        example: mypassword123
+        type: string
     type: object
   websocket.ErrorResponse:
     properties:
@@ -31,7 +63,7 @@ info:
   contact: {}
   description: Realtime chat rooms with WebSocket and REST
   title: Chatters API
-  version: 1.0.0
+  version: 0.1.0
 paths:
   /api/health:
     get:
@@ -52,26 +84,72 @@ paths:
     post:
       consumes:
       - application/json
-      description: Generates and creates a new room with a random ID
+      description: Generates and creates a new room with a random ID. Optionally set
+        a password for the room.
+      parameters:
+      - description: Room creation request with optional password
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/server.CreateRoomRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Room created successfully with host token
           schema:
             $ref: '#/definitions/server.CreateRoomResponse'
-        "409":
-          description: Conflict
+        "400":
+          description: Invalid request
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Server error
           schema:
             $ref: '#/definitions/server.ErrorResponse'
       summary: Create a new room
       tags:
       - rooms
   /api/rooms/{room_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a room (host only)
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      - description: Host JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Delete room
+      tags:
+      - rooms
     get:
       consumes:
       - application/json
@@ -100,6 +178,139 @@ paths:
       summary: Get room info
       tags:
       - rooms
+  /api/rooms/{room_id}/kick:
+    post:
+      consumes:
+      - application/json
+      description: Removes a user from the room (host only)
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      - description: Host JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Kick user request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.KickUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Kick user from room
+      tags:
+      - rooms
+  /api/rooms/{room_id}/password:
+    put:
+      consumes:
+      - application/json
+      description: Changes the password of a room (host only)
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      - description: Host JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Change password request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Change room password
+      tags:
+      - rooms
+  /api/rooms/{room_id}/validate-password:
+    post:
+      consumes:
+      - application/json
+      description: Validates password for password-protected room
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: integer
+      - description: Password validation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.ValidatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Validate room password
+      tags:
+      - rooms
   /ws/{room_id}:
     get:
       description: Opens a WebSocket connection to the specified room. Optionally
@@ -114,6 +325,14 @@ paths:
         in: query
         name: username
         type: string
+      - description: Room password if required
+        in: query
+        name: password
+        type: string
+      - description: Host token for room management privileges
+        in: query
+        name: host_token
+        type: string
       responses:
         "101":
           description: Switching Protocols (WebSocket upgraded)
@@ -121,6 +340,10 @@ paths:
             type: string
         "400":
           description: Bad request or validation error
+          schema:
+            $ref: '#/definitions/websocket.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid password or host token
           schema:
             $ref: '#/definitions/websocket.ErrorResponse'
         "404":

@@ -9,20 +9,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/YuarenArt/chatters/internal/config"
 	"github.com/YuarenArt/chatters/internal/logging"
 	"github.com/YuarenArt/chatters/pkg/websocket"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type CreateRoomResponse struct {
-	RoomID websocket.ID `json:"room_id"`
+	RoomID    websocket.ID `json:"room_id"`
+	HostToken string       `json:"host_token"`
 }
 
 type RoomResponse struct {
-	RoomID websocket.ID `json:"room_id"`
+	RoomID      websocket.ID `json:"room_id"`
+	HasPassword bool         `json:"has_password"`
+	HostID      string       `json:"host_id,omitempty"`
+	ClientCount int          `json:"client_count"`
 }
 
 type ErrorResponse struct {
@@ -37,6 +44,7 @@ type Server struct {
 	Middleware []gin.HandlerFunc
 	Logger     logging.Logger
 	Metrics    *Metrics
+	Config     *config.Config
 }
 
 // Validation constants
@@ -45,7 +53,13 @@ const (
 	MinRoomID = 1         // Minimum room ID value
 )
 
-func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logger) *Server {
+// hashPassword hashes a password using bcrypt
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logger, cfg *config.Config) *Server {
 	apiLogger, _ := logging.NewFileLogger("logs/api.log", false)
 
 	engine := gin.New()
@@ -93,6 +107,7 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 		Addr:    addr,
 		Logger:  serverLogger,
 		Metrics: metrics,
+		Config:  cfg,
 	}
 
 	s.registerRoutes()
@@ -115,11 +130,15 @@ func NewServer(addr string, handler websocket.Handler, serverLogger logging.Logg
 // @Router /api/health [get]
 func (s *Server) registerRoutes() {
 
-	s.Engine.GET("/ws/:room_id", s.Handler.HandleWebSocket)
+	s.Engine.GET("/ws/:room_id", s.Handler.HandleWebSocketWithJWT(s.Config.JWTSecret))
 	api := s.Engine.Group("/api")
 
 	api.POST("/rooms", s.CreateRoom())
 	api.GET("/rooms/:room_id", s.Room())
+	api.POST("/rooms/:room_id/validate-password", s.ValidatePassword())
+	api.POST("/rooms/:room_id/kick", s.KickUser())
+	api.PUT("/rooms/:room_id/password", s.ChangePassword())
+	api.DELETE("/rooms/:room_id", s.DeleteRoom())
 
 	s.Engine.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -225,15 +244,32 @@ func APILoggerMiddleware(logger logging.Logger) gin.HandlerFunc {
 	}
 }
 
+type CreateRoomRequest struct {
+	Password string `json:"password,omitempty" example:"mypassword123"`
+}
+
+type ValidatePasswordRequest struct {
+	Password string `json:"password" example:"mypassword123"`
+}
+
+type KickUserRequest struct {
+	Username string `json:"username" example:"john_doe"`
+}
+
+type ChangePasswordRequest struct {
+	NewPassword string `json:"new_password" example:"newpassword456"`
+}
+
 // CreateRoom godoc
 // @Summary Create a new room
-// @Description Generates and creates a new room with a random ID
+// @Description Generates and creates a new room with a random ID. Optionally set a password for the room.
 // @Tags rooms
 // @Accept json
 // @Produce json
-// @Success 201 {object} CreateRoomResponse
-// @Failure 409 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Param request body CreateRoomRequest false "Room creation request with optional password"
+// @Success 201 {object} CreateRoomResponse "Room created successfully with host token"
+// @Failure 400 {object} ErrorResponse "Invalid request"
+// @Failure 500 {object} ErrorResponse "Server error"
 // @Router /api/rooms [post]
 func (s *Server) CreateRoom() func(c *gin.Context) {
 	return func(c *gin.Context) {
@@ -245,9 +281,19 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 			"client_ip", c.ClientIP(),
 			"user_agent", c.Request.UserAgent())
 
+		var req CreateRoomRequest
+		// Handle empty request body (optional password)
+		if c.Request.ContentLength > 0 {
+			if err := c.BindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, ErrorResponse{400, err.Error()})
+				return
+			}
+		}
+
 		var roomID websocket.ID
 		var created bool
 		maxRetries := 100
+		var hostToken *jwt.Token
 
 		for i := 0; i < maxRetries; i++ {
 			roomID = websocket.ID(rand.Uint32())
@@ -255,7 +301,34 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 				continue
 			}
 
-			_, created = s.Handler.Hub.CreateRoom(roomID, s.Metrics)
+			// Generate host ID for the room creator
+			hostID := uuid.New().String()
+
+			hostToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"room_id": roomID,
+				"host_id": hostID,
+				"host":    true,
+				"exp":     time.Now().Add(24 * time.Hour).Unix(),
+			})
+
+			// Prepare room options
+			var opts []websocket.RoomOption
+			opts = append(opts, websocket.WithHost(hostID))
+
+			if req.Password != "" {
+				hashedPassword, err := hashPassword(req.Password)
+				if err != nil {
+					s.Logger.Log(ctx, logging.Error, "Failed to hash password", "error", err.Error())
+					c.JSON(http.StatusInternalServerError, ErrorResponse{
+						Code:  http.StatusInternalServerError,
+						Error: "failed to process password",
+					})
+					return
+				}
+				opts = append(opts, websocket.WithPassword(hashedPassword))
+			}
+
+			_, created = s.Handler.Hub.CreateRoom(roomID, s.Metrics, opts...)
 			if created {
 				break
 			}
@@ -271,9 +344,20 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 			return
 		}
 
+		// Sign the JWT token
+		tokenString, err := hostToken.SignedString([]byte(s.Config.JWTSecret))
+		if err != nil {
+			s.Logger.Log(ctx, logging.Error, "Failed to sign JWT token", "error", err.Error())
+			c.JSON(http.StatusInternalServerError, ErrorResponse{
+				Code:  http.StatusInternalServerError,
+				Error: "failed to generate host token",
+			})
+			return
+		}
+
 		s.Logger.Log(ctx, logging.Info, "Room created successfully",
 			"room_id", roomID, "retries", maxRetries)
-		c.JSON(http.StatusCreated, CreateRoomResponse{RoomID: roomID})
+		c.JSON(http.StatusCreated, CreateRoomResponse{RoomID: roomID, HostToken: tokenString})
 	}
 }
 
@@ -324,7 +408,12 @@ func (s *Server) Room() func(c *gin.Context) {
 
 		s.Logger.Log(ctx, logging.Info, "Room info retrieved successfully",
 			"room_id", roomID, "client_count", room.GetClientCount())
-		c.JSON(http.StatusOK, RoomResponse{RoomID: room.ID})
+		c.JSON(http.StatusOK, RoomResponse{
+			RoomID:      room.ID,
+			HasPassword: room.HasPassword(),
+			HostID:      room.GetHostID(),
+			ClientCount: room.GetClientCount(),
+		})
 	}
 }
 
@@ -358,4 +447,326 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	s.Handler.Pool.Release()
 	return nil
+}
+
+// validateHostToken validates JWT token and checks if user is host
+func (s *Server) validateHostToken(tokenString, roomIDStr string) (*jwt.MapClaims, error) {
+	if tokenString == "" {
+		return nil, errors.New("host token required")
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return []byte(s.Config.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+
+	// Verify room_id matches - convert to string for comparison
+	var tokenRoomID string
+	switch v := claims["room_id"].(type) {
+	case float64:
+		tokenRoomID = strconv.FormatFloat(v, 'f', 0, 64)
+	case string:
+		tokenRoomID = v
+	default:
+		return nil, errors.New("invalid room_id type in token")
+	}
+
+	if tokenRoomID != roomIDStr {
+		return nil, errors.New("token room_id mismatch")
+	}
+
+	// Verify host claim
+	if host, ok := claims["host"].(bool); !ok || !host {
+		return nil, errors.New("not a host token")
+	}
+
+	return &claims, nil
+}
+
+// ValidatePassword godoc
+// @Summary Validate room password
+// @Description Validates password for password-protected room
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Param room_id path int true "Room ID"
+// @Param request body ValidatePasswordRequest true "Password validation request"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/rooms/{room_id}/validate-password [post]
+func (s *Server) ValidatePassword() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		roomIDStr := c.Param("room_id")
+
+		roomID, err := validateRoomID(roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "invalid room ID format",
+			})
+			return
+		}
+
+		room, exists := s.Handler.Hub.GetRoom(roomID)
+		if !exists {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Code:  http.StatusNotFound,
+				Error: "room not found",
+			})
+			return
+		}
+
+		var req ValidatePasswordRequest
+		// Handle empty request body
+		if c.Request.ContentLength > 0 {
+			if err := c.BindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, ErrorResponse{
+					Code:  http.StatusBadRequest,
+					Error: "invalid request body",
+				})
+				return
+			}
+		}
+
+		if !room.HasPassword() {
+			c.JSON(http.StatusOK, gin.H{"valid": true})
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(room.HashedPassword), []byte(req.Password))
+		valid := err == nil
+
+		s.Logger.Log(ctx, logging.Info, "Password validation attempt",
+			"room_id", roomID, "valid", valid)
+
+		c.JSON(http.StatusOK, gin.H{"valid": valid})
+	}
+}
+
+// KickUser godoc
+// @Summary Kick user from room
+// @Description Removes a user from the room (host only)
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Param room_id path int true "Room ID"
+// @Param Authorization header string true "Host JWT token"
+// @Param request body KickUserRequest true "Kick user request"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/rooms/{room_id}/kick [post]
+func (s *Server) KickUser() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		roomIDStr := c.Param("room_id")
+		hostToken := c.GetHeader("Authorization")
+
+		roomID, err := validateRoomID(roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "invalid room ID format",
+			})
+			return
+		}
+
+		_, err = s.validateHostToken(hostToken, roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Code:  http.StatusUnauthorized,
+				Error: "unauthorized: " + err.Error(),
+			})
+			return
+		}
+
+		room, exists := s.Handler.Hub.GetRoom(roomID)
+		if !exists {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Code:  http.StatusNotFound,
+				Error: "room not found",
+			})
+			return
+		}
+
+		var req KickUserRequest
+		// Handle empty request body
+		if c.Request.ContentLength > 0 {
+			if err := c.BindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, ErrorResponse{
+					Code:  http.StatusBadRequest,
+					Error: "invalid request body",
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "username is required",
+			})
+			return
+		}
+
+		kicked := room.KickClient(req.Username)
+		if !kicked {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Code:  http.StatusNotFound,
+				Error: "user not found in room",
+			})
+			return
+		}
+
+		s.Logger.Log(ctx, logging.Info, "User kicked from room",
+			"room_id", roomID, "username", req.Username)
+
+		c.JSON(http.StatusOK, gin.H{"message": "user kicked successfully"})
+	}
+}
+
+// ChangePassword godoc
+// @Summary Change room password
+// @Description Changes the password of a room (host only)
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Param room_id path int true "Room ID"
+// @Param Authorization header string true "Host JWT token"
+// @Param request body ChangePasswordRequest true "Change password request"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/rooms/{room_id}/password [put]
+func (s *Server) ChangePassword() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		roomIDStr := c.Param("room_id")
+		hostToken := c.GetHeader("Authorization")
+
+		roomID, err := validateRoomID(roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "invalid room ID format",
+			})
+			return
+		}
+
+		_, err = s.validateHostToken(hostToken, roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Code:  http.StatusUnauthorized,
+				Error: "unauthorized: " + err.Error(),
+			})
+			return
+		}
+
+		room, exists := s.Handler.Hub.GetRoom(roomID)
+		if !exists {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Code:  http.StatusNotFound,
+				Error: "room not found",
+			})
+			return
+		}
+
+		var req ChangePasswordRequest
+		// Handle empty request body
+		if c.Request.ContentLength > 0 {
+			if err := c.BindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, ErrorResponse{
+					Code:  http.StatusBadRequest,
+					Error: "invalid request body",
+				})
+				return
+			}
+		}
+
+		var hashedPassword string
+		if req.NewPassword != "" {
+			hashedPassword, err = hashPassword(req.NewPassword)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, ErrorResponse{
+					Code:  http.StatusInternalServerError,
+					Error: "failed to hash password",
+				})
+				return
+			}
+		}
+
+		room.SetPassword(hashedPassword)
+
+		s.Logger.Log(ctx, logging.Info, "Room password changed",
+			"room_id", roomID, "has_password", req.NewPassword != "")
+
+		c.JSON(http.StatusOK, gin.H{"message": "password changed successfully"})
+	}
+}
+
+// DeleteRoom godoc
+// @Summary Delete room
+// @Description Deletes a room (host only)
+// @Tags rooms
+// @Accept json
+// @Produce json
+// @Param room_id path int true "Room ID"
+// @Param Authorization header string true "Host JWT token"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/rooms/{room_id} [delete]
+func (s *Server) DeleteRoom() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		roomIDStr := c.Param("room_id")
+		hostToken := c.GetHeader("Authorization")
+
+		roomID, err := validateRoomID(roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Code:  http.StatusBadRequest,
+				Error: "invalid room ID format",
+			})
+			return
+		}
+
+		_, err = s.validateHostToken(hostToken, roomIDStr)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, ErrorResponse{
+				Code:  http.StatusUnauthorized,
+				Error: "unauthorized: " + err.Error(),
+			})
+			return
+		}
+
+		deleted := s.Handler.Hub.DeleteRoom(roomID)
+		if !deleted {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Code:  http.StatusNotFound,
+				Error: "room not found",
+			})
+			return
+		}
+
+		s.Logger.Log(ctx, logging.Info, "Room deleted",
+			"room_id", roomID)
+
+		c.JSON(http.StatusOK, gin.H{"message": "room deleted successfully"})
+	}
 }

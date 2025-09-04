@@ -1,4 +1,4 @@
-package websocket
+package websocket_test
 
 import (
 	"net/http"
@@ -7,27 +7,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YuarenArt/chatters/pkg/websocket"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	gorillaWs "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 )
 
 type HandlerTestSuite struct {
 	suite.Suite
-	handler *Handler
-	hub     *Hub
-	pool    *TaskPool
+	handler *websocket.Handler
+	hub     *websocket.Hub
+	pool    *websocket.TaskPool
 	engine  *gin.Engine
 }
 
 func (s *HandlerTestSuite) SetupTest() {
-	s.hub = NewHub()
+	s.hub = websocket.NewHub()
 	var err error
-	s.pool, err = NewTaskPool(10)
+	s.pool, err = websocket.NewTaskPool(10)
 	s.NoError(err)
-	s.handler = NewHandler(s.hub, s.pool)
+	s.handler = websocket.NewHandler(s.hub, s.pool)
 	s.engine = gin.New()
-	s.engine.GET("/api/ws/:room_id", s.handler.HandleWebSocket)
+	s.engine.GET("/api/ws/:room_id", s.handler.HandleWebSocketWithJWT("test-secret"))
 }
 
 func (s *HandlerTestSuite) TearDownTest() {
@@ -59,7 +60,7 @@ func (s *HandlerTestSuite) TestHandleWebSocketValidUsername() {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/ws/1?username=testuser"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, _, err := gorillaWs.DefaultDialer.Dial(wsURL, nil)
 	s.NoError(err)
 	defer conn.Close()
 

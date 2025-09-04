@@ -21,6 +21,7 @@ type Client struct {
 	Room      *Room
 	Username  string
 	closeOnce sync.Once
+	IsHost    bool
 }
 
 // Read reads messages from WebSocket connection
@@ -45,6 +46,17 @@ func (c *Client) Read() {
 		switch message.Type {
 		case "chat":
 			c.handleChatMessage(message)
+		case "kick":
+			if !c.IsHost {
+				log.Printf("Non-host %s attempted to send kick message", c.Username)
+				continue
+			}
+			var kick KickMessage
+			if err := json.Unmarshal(message.Data, &kick); err != nil {
+				log.Printf("Failed to unmarshal kick message: %v", err)
+				continue
+			}
+			c.handleKickMessage(kick)
 		default:
 			c.Room.Broadcast <- msg
 		}
@@ -67,6 +79,47 @@ func (c *Client) handleChatMessage(message Message) {
 	if newMsg, err := json.Marshal(message); err == nil {
 		c.Room.Broadcast <- newMsg
 	}
+}
+
+func (c *Client) handleKickMessage(kick KickMessage) {
+	if kick.TargetUsername == c.Username {
+		return
+	}
+
+	c.Room.mu.RLock()
+	var target *Client
+	for client := range c.Room.Clients {
+		if client.Username == kick.TargetUsername {
+			target = client
+			break
+		}
+	}
+	c.Room.mu.RUnlock()
+
+	if target == nil {
+		log.Printf("Target user %s not found in room %d", kick.TargetUsername, c.Room.ID)
+		return
+	}
+
+	target.closeOnce.Do(func() {
+		close(target.Send)
+	})
+	target.Conn.Close()
+	c.Room.Unregister <- target
+
+	notification := KickNotification{
+		TargetUsername: kick.TargetUsername,
+		KickedBy:       c.Username,
+	}
+	notificationData, _ := json.Marshal(notification)
+	broadcastMsg := Message{
+		Type: "kick",
+		Data: notificationData,
+	}
+	broadcastData, _ := json.Marshal(broadcastMsg)
+	c.Room.Broadcast <- broadcastData
+
+	log.Printf("User %s kicked by %s in room %d", kick.TargetUsername, c.Username, c.Room.ID)
 }
 
 // Write writes messages to WebSocket connection

@@ -1,4 +1,4 @@
-package websocket
+package websocket_test
 
 import (
 	"encoding/json"
@@ -9,41 +9,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YuarenArt/chatters/pkg/websocket"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	gorillaWs "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 )
 
 type RoomTestSuite struct {
 	suite.Suite
-	room      *Room
+	room      *websocket.Room
 	server    *httptest.Server
-	wsConn    *websocket.Conn
+	wsConn    *gorillaWs.Conn
 	wg        sync.WaitGroup
-	signaling *SignalingHandler
+	signaling *websocket.SignalingHandler
 }
 
 func (s *RoomTestSuite) SetupTest() {
-	s.room = NewRoom(1, nil)
+	s.room = websocket.NewRoom(1, nil)
 	go s.room.Run()
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	upgrader := websocket.Upgrader{}
+	upgrader := gorillaWs.Upgrader{}
 	engine.GET("/ws", func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		client := &Client{
+		client := &websocket.Client{
 			Conn:     conn,
 			Send:     make(chan []byte, 256),
 			Room:     s.room,
 			Username: "testuser",
 		}
 		s.room.Register <- client
-		s.signaling = NewSignalingHandler()
+		s.signaling = websocket.NewSignalingHandler()
 		go client.Read()
 		go client.Write()
 	})
@@ -52,7 +53,7 @@ func (s *RoomTestSuite) SetupTest() {
 	wsURL := "ws" + strings.TrimPrefix(s.server.URL, "http") + "/ws"
 
 	var err error
-	s.wsConn, _, err = websocket.DefaultDialer.Dial(wsURL, nil)
+	s.wsConn, _, err = gorillaWs.DefaultDialer.Dial(wsURL, nil)
 	s.NoError(err)
 
 	s.wg.Add(1)
@@ -80,13 +81,13 @@ func (s *RoomTestSuite) TestRegisterClient() {
 func (s *RoomTestSuite) TestBroadcastJoinNotification() {
 	messageType, msg, err := s.wsConn.ReadMessage()
 	s.NoError(err)
-	s.Equal(websocket.TextMessage, messageType)
+	s.Equal(gorillaWs.TextMessage, messageType)
 
-	var message Message
+	var message websocket.Message
 	s.NoError(json.Unmarshal(msg, &message))
 	s.Equal("join", message.Type)
 
-	var notification JoinNotification
+	var notification websocket.JoinNotification
 	s.NoError(json.Unmarshal(message.Data, &notification))
 	s.Equal("testuser", notification.Username)
 	s.Equal(1, notification.OnlineCount)

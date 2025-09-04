@@ -168,11 +168,12 @@ class ChatApp {
 
         this.isJoining = true;
         const joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) joinBtn.disabled = true; // Disable button
+        if (joinBtn) joinBtn.disabled = true;
 
         try {
             const roomId = this.getElementValue('roomId');
             const username = this.getElementValue('username');
+            const password = this.getElementValue('roomPassword');
 
             if (!roomId || !username) {
                 this.showNotification('Error', 'Please fill in all fields', 'error');
@@ -193,10 +194,18 @@ class ChatApp {
 
             this.saveToStorage(username);
 
-            await this.validateRoom(roomIdNum);
+            const roomInfo = await this.validateRoom(roomIdNum);
+
+            // Validate password if room requires it
+            if (roomInfo.has_password && password) {
+                await this.validatePassword(roomIdNum, password);
+            } else if (roomInfo.has_password && !password) {
+                this.showNotification('Error', 'This room requires a password', 'error');
+                return;
+            }
 
             if (this.widgets.chat) {
-                await this.widgets.chat.joinRoom(roomIdNum, username);
+                await this.widgets.chat.joinRoom(roomIdNum, username, password);
                 this.showNotification('Success', `Joined room ${roomIdNum}`, 'success');
             } else {
                 console.error('ChatWidget not initialized');
@@ -208,13 +217,35 @@ class ChatApp {
             this.showNotification('Error', error.message || 'Failed to join room', 'error');
         } finally {
             this.isJoining = false;
-            if (joinBtn) joinBtn.disabled = false; // Re-enable button
+            if (joinBtn) joinBtn.disabled = false;
         }
     }
 
     getElementValue(elementId) {
         const element = document.getElementById(elementId);
         return element ? element.value.trim() : '';
+    }
+
+    async validatePassword(roomId, password) {
+        try {
+            const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${roomId}/validate-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Password validation failed');
+            }
+
+            const result = await response.json();
+            if (!result.valid) {
+                throw new Error('Invalid password');
+            }
+        } catch (error) {
+            throw new Error('Invalid room password');
+        }
     }
 
     async validateRoom(roomId) {
@@ -224,6 +255,21 @@ class ChatApp {
                 const error = await response.json();
                 throw new Error(error.error || 'Room not found');
             }
+
+            const roomInfo = await response.json();
+            this.currentRoomInfo = roomInfo;
+
+            // Show password field if room requires password
+            const passwordGroup = document.getElementById('passwordGroup');
+            if (passwordGroup) {
+                if (roomInfo.has_password) {
+                    passwordGroup.style.display = 'block';
+                } else {
+                    passwordGroup.style.display = 'none';
+                }
+            }
+
+            return roomInfo;
         } catch (error) {
             if (error.message.includes('Room not found')) {
                 throw new Error('Room does not exist');

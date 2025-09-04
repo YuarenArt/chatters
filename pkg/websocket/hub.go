@@ -20,8 +20,8 @@ func (h *Hub) GetRoom(id ID) (*Room, bool) {
 	return room.(*Room), true
 }
 
-func (h *Hub) CreateRoom(id ID, metrics MetricsNotifier) (*Room, bool) {
-	room := NewRoom(id, metrics)
+func (h *Hub) CreateRoom(id ID, metrics MetricsNotifier, opts ...RoomOption) (*Room, bool) {
+	room := NewRoom(id, metrics, opts...)
 	_, loaded := h.Rooms.LoadOrStore(id, room)
 	if loaded {
 		return nil, false

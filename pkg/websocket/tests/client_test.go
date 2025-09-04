@@ -1,4 +1,4 @@
-package websocket
+package websocket_test
 
 import (
 	"encoding/json"
@@ -9,49 +9,50 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YuarenArt/chatters/pkg/websocket"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	gorillaWs "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/suite"
 )
 
 type ClientTestSuite struct {
 	suite.Suite
-	room      *Room
-	client    *Client
+	room      *websocket.Room
+	client    *websocket.Client
 	server    *httptest.Server
-	wsConn    *websocket.Conn
-	taskPool  *TaskPool
+	wsConn    *gorillaWs.Conn
+	taskPool  *websocket.TaskPool
 	wg        sync.WaitGroup
-	signaling *SignalingHandler
+	signaling *websocket.SignalingHandler
 }
 
 func (s *ClientTestSuite) SetupTest() {
-	s.room = NewRoom(1, nil)
+	s.room = websocket.NewRoom(1, nil)
 	go s.room.Run()
 
 	var err error
-	s.taskPool, err = NewTaskPool(10)
+	s.taskPool, err = websocket.NewTaskPool(10)
 	s.NoError(err)
 
-	hub := NewHub()
-	handler := NewHandler(hub, s.taskPool)
+	hub := websocket.NewHub()
+	handler := websocket.NewHandler(hub, s.taskPool)
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	engine.GET("/ws", func(c *gin.Context) {
-		hub.Rooms.Store(ID(1), s.room)
+		hub.Rooms.Store(websocket.ID(1), s.room)
 		conn, err := handler.Upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upgrade"})
 			return
 		}
-		s.client = &Client{
+		s.client = &websocket.Client{
 			Conn:     conn,
 			Send:     make(chan []byte, 256),
 			Room:     s.room,
 			Username: "testuser",
 		}
 		s.room.Register <- s.client
-		s.signaling = NewSignalingHandler()
+		s.signaling = websocket.NewSignalingHandler()
 		s.NoError(s.taskPool.Submit(func() { s.client.Read() }))
 		s.NoError(s.taskPool.Submit(func() { s.client.Write() }))
 	})
@@ -59,7 +60,7 @@ func (s *ClientTestSuite) SetupTest() {
 	s.server = httptest.NewServer(engine)
 	wsURL := "ws" + strings.TrimPrefix(s.server.URL, "http") + "/ws"
 
-	s.wsConn, _, err = websocket.DefaultDialer.Dial(wsURL, nil)
+	s.wsConn, _, err = gorillaWs.DefaultDialer.Dial(wsURL, nil)
 	s.NoError(err)
 
 	s.wg.Add(1)
@@ -82,12 +83,12 @@ func (s *ClientTestSuite) TearDownTest() {
 }
 
 func (s *ClientTestSuite) TestReadChatMessage() {
-	chatMsg := ChatMessage{Text: "Hello", Username: s.client.Username}
+	chatMsg := websocket.ChatMessage{Text: "Hello", Username: s.client.Username}
 	data, _ := json.Marshal(chatMsg)
-	msg := Message{Type: "chat", Data: data}
+	msg := websocket.Message{Type: "chat", Data: data}
 	msgBytes, _ := json.Marshal(msg)
 
-	err := s.wsConn.WriteMessage(websocket.TextMessage, msgBytes)
+	err := s.wsConn.WriteMessage(gorillaWs.TextMessage, msgBytes)
 	s.NoError(err)
 
 	deadline := time.Now().Add(2 * time.Second)
@@ -100,7 +101,7 @@ func (s *ClientTestSuite) TestReadChatMessage() {
 		_ = s.wsConn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 		_, raw, err := s.wsConn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) || !strings.Contains(err.Error(), "i/o timeout") {
+			if gorillaWs.IsUnexpectedCloseError(err, gorillaWs.CloseNormalClosure) || !strings.Contains(err.Error(), "i/o timeout") {
 				s.T().Logf("ReadMessage error: %v", err)
 				s.FailNow("Unexpected websocket read error")
 				return
@@ -108,7 +109,7 @@ func (s *ClientTestSuite) TestReadChatMessage() {
 			continue
 		}
 
-		var received Message
+		var received websocket.Message
 		if err := json.Unmarshal(raw, &received); err != nil {
 			continue
 		}
@@ -117,7 +118,7 @@ func (s *ClientTestSuite) TestReadChatMessage() {
 			continue
 		}
 
-		var receivedChat ChatMessage
+		var receivedChat websocket.ChatMessage
 		s.NoError(json.Unmarshal(received.Data, &receivedChat))
 		s.Equal(chatMsg.Text, receivedChat.Text)
 		s.Equal(s.client.Username, receivedChat.Username)

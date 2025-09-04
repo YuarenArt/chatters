@@ -12,20 +12,25 @@ type MetricsNotifier interface {
 	DroppedMessage(roomID string, clientID string)
 }
 
+// RoomOption represents a functional option for configuring a Room.
+type RoomOption func(*Room)
+
 type Room struct {
-	ID         ID
-	Clients    map[*Client]bool
-	Register   chan *Client
-	Unregister chan *Client
-	Broadcast  chan []byte
-	Stop       chan struct{}
-	stopOnce   sync.Once
-	mu         sync.RWMutex
-	Metrics    MetricsNotifier
+	ID             ID
+	Clients        map[*Client]bool
+	Register       chan *Client
+	Unregister     chan *Client
+	Broadcast      chan []byte
+	Stop           chan struct{}
+	stopOnce       sync.Once
+	mu             sync.RWMutex
+	Metrics        MetricsNotifier
+	HostID         string // UUID of the host client
+	HashedPassword string // Hashed password for room access, optional
 }
 
-func NewRoom(id ID, metrics MetricsNotifier) *Room {
-	return &Room{
+func NewRoom(id ID, metrics MetricsNotifier, opts ...RoomOption) *Room {
+	room := &Room{
 		ID:         id,
 		Clients:    make(map[*Client]bool),
 		Register:   make(chan *Client),
@@ -33,6 +38,26 @@ func NewRoom(id ID, metrics MetricsNotifier) *Room {
 		Broadcast:  make(chan []byte),
 		Stop:       make(chan struct{}),
 		Metrics:    metrics,
+	}
+
+	for _, opt := range opts {
+		opt(room)
+	}
+
+	return room
+}
+
+// WithHost sets the HostID of the room.
+func WithHost(hostID string) RoomOption {
+	return func(r *Room) {
+		r.HostID = hostID
+	}
+}
+
+// WithPassword sets the hashed password of the room.
+func WithPassword(hashedPassword string) RoomOption {
+	return func(r *Room) {
+		r.HashedPassword = hashedPassword
 	}
 }
 
@@ -143,6 +168,45 @@ func (r *Room) GetClientCount() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.Clients)
+}
+
+// HasPassword returns true if the room has a password set
+func (r *Room) HasPassword() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.HashedPassword != ""
+}
+
+// GetHostID returns the host ID of the room
+func (r *Room) GetHostID() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.HostID
+}
+
+// SetPassword updates the room's hashed password
+func (r *Room) SetPassword(hashedPassword string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.HashedPassword = hashedPassword
+}
+
+// KickClient removes a client from the room by username
+func (r *Room) KickClient(username string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for client := range r.Clients {
+		if client.Username == username {
+			select {
+			case r.Unregister <- client:
+				return true
+			default:
+				return false
+			}
+		}
+	}
+	return false
 }
 
 func (r *Room) sendExcept(sender *Client, msg []byte) {

@@ -45,7 +45,7 @@ func main() {
 	hub := websocket.NewHub()
 	wsHandler := websocket.NewHandler(hub, taskPool)
 
-	srv := server.NewServer(":"+cfg.Port, *wsHandler, logger)
+	srv := server.NewServer(":"+cfg.Port, *wsHandler, logger, cfg)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

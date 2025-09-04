@@ -121,9 +121,9 @@ function handleBeforeUnload(event) {
 // Handle page visibility change
 function handleVisibilityChange() {
     if (document.hidden) {
-        console.log('Page hidden');
+        //console.log('Page hidden');
     } else {
-        console.log('Page visible');
+        //console.log('Page visible');
     }
 }
 
