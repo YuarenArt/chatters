@@ -33,8 +33,8 @@ func NewHandler(hub *Hub, pool *TaskPool) *Handler {
 		Hub:  hub,
 		Pool: pool,
 		Upgrader: websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+			ReadBufferSize:  4096,
+			WriteBufferSize: 4096,
 			CheckOrigin:     func(r *http.Request) bool { return true },
 		},
 		SignalingHandler: NewSignalingHandler(),

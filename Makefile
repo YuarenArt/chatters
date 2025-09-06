@@ -3,10 +3,10 @@ MAIN=cmd/server/main.go
 LOGS=logs/*.log
 
 # Default values for load testing
-USERS?=100
-SPAWN_RATE?=10
+USERS?=2000
+SPAWN_RATE?=25
 HOST?=http://localhost:8080
-RUN_TIME?=10m
+RUN_TIME?=3m
 
 
 .PHONY: all build run clean swagger web test test-cover test-race loadtest
