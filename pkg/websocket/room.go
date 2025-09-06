@@ -32,11 +32,11 @@ type Room struct {
 func NewRoom(id ID, metrics MetricsNotifier, opts ...RoomOption) *Room {
 	room := &Room{
 		ID:         id,
-		Clients:    make(map[*Client]bool),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Broadcast:  make(chan []byte),
-		Stop:       make(chan struct{}),
+		Clients:    make(map[*Client]bool, 50),
+		Register:   make(chan *Client, 100),
+		Unregister: make(chan *Client, 100),
+		Broadcast:  make(chan []byte, 100),
+		Stop:       make(chan struct{}, 1),
 		Metrics:    metrics,
 	}
 
@@ -96,25 +96,36 @@ func (r *Room) removeClient(client *Client) {
 }
 
 func (r *Room) sendMessage(msg []byte) {
+	var dropped []*Client
+
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 	for client := range r.Clients {
+		if client.isClosed() {
+			dropped = append(dropped, client)
+			continue
+		}
 		select {
 		case client.Send <- msg:
 		default:
-			client.closeOnce.Do(func() {
-				close(client.Send)
-			})
-			r.mu.RUnlock()
-			r.mu.Lock()
-			delete(r.Clients, client)
-			r.mu.Unlock()
-			r.mu.RLock()
+			dropped = append(dropped, client)
+		}
+	}
+	r.mu.RUnlock()
 
-			if r.Metrics != nil {
-				r.Metrics.DroppedMessage(strconv.Itoa(int(r.ID)), client.Username)
+	if len(dropped) > 0 {
+		r.mu.Lock()
+		for _, client := range dropped {
+			if _, ok := r.Clients[client]; ok {
+				delete(r.Clients, client)
+				client.closeOnce.Do(func() {
+					close(client.Send)
+				})
+				if r.Metrics != nil {
+					r.Metrics.DroppedMessage(strconv.Itoa(int(r.ID)), client.Username)
+				}
 			}
 		}
+		r.mu.Unlock()
 	}
 }
 
@@ -161,6 +172,7 @@ func (r *Room) StopRoom() {
 			})
 			client.Conn.Close()
 		}
+		r.Clients = make(map[*Client]bool)
 	})
 }
 
@@ -193,17 +205,13 @@ func (r *Room) SetPassword(hashedPassword string) {
 
 // KickClient removes a client from the room by username
 func (r *Room) KickClient(username string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	for client := range r.Clients {
 		if client.Username == username {
-			select {
-			case r.Unregister <- client:
-				return true
-			default:
-				return false
-			}
+			go func(c *Client) { r.Unregister <- c }(client)
+			return true
 		}
 	}
 	return false

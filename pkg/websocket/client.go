@@ -132,3 +132,12 @@ func (c *Client) Write() {
 		}
 	}
 }
+
+func (c *Client) isClosed() bool {
+	select {
+	case _, ok := <-c.Send:
+		return !ok
+	default:
+		return false
+	}
+}
