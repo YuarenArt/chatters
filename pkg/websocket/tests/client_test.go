@@ -22,8 +22,8 @@ type ClientTestSuite struct {
 	server    *httptest.Server
 	wsConn    *gorillaWs.Conn
 	taskPool  *websocket.TaskPool
-	wg        sync.WaitGroup
 	signaling *websocket.SignalingHandler
+	wg        sync.WaitGroup
 }
 
 func (s *ClientTestSuite) SetupTest() {

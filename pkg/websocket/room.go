@@ -16,17 +16,17 @@ type MetricsNotifier interface {
 type RoomOption func(*Room)
 
 type Room struct {
-	ID             ID
+	Metrics        MetricsNotifier
 	Clients        map[*Client]bool
 	Register       chan *Client
 	Unregister     chan *Client
 	Broadcast      chan []byte
 	Stop           chan struct{}
-	stopOnce       sync.Once
+	HostID         string
+	HashedPassword string
 	mu             sync.RWMutex
-	Metrics        MetricsNotifier
-	HostID         string // UUID of the host client
-	HashedPassword string // Hashed password for room access, optional
+	stopOnce       sync.Once
+	ID             ID
 }
 
 func NewRoom(id ID, metrics MetricsNotifier, opts ...RoomOption) *Room {

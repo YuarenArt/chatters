@@ -23,9 +23,9 @@ const (
 
 type Handler struct {
 	Hub              *Hub
-	Upgrader         websocket.Upgrader
 	Pool             *TaskPool
 	SignalingHandler *SignalingHandler
+	Upgrader         websocket.Upgrader
 }
 
 func NewHandler(hub *Hub, pool *TaskPool) *Handler {

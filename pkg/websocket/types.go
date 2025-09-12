@@ -48,8 +48,8 @@ type LeaveNotification struct {
 
 // ErrorResponse Standard error response
 type ErrorResponse struct {
-	Code    int    `json:"code" example:"400"`
 	Message string `json:"message" example:"Invalid request"`
+	Code    int    `json:"code" example:"400"`
 }
 
 // ValidationError Field-specific validation error

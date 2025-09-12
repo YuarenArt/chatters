@@ -20,8 +20,8 @@ type RoomTestSuite struct {
 	room      *websocket.Room
 	server    *httptest.Server
 	wsConn    *gorillaWs.Conn
-	wg        sync.WaitGroup
 	signaling *websocket.SignalingHandler
+	wg        sync.WaitGroup
 }
 
 func (s *RoomTestSuite) SetupTest() {

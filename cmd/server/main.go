@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -25,6 +28,22 @@ func main() {
 	defer cancel()
 
 	cfg := config.NewConfig()
+
+	// Enable profiling if configured
+	if cfg.IsProfilingEnabled() {
+		runtime.SetBlockProfileRate(1)     // Enable block profiling
+		runtime.SetMutexProfileFraction(1) // Enable mutex profiling
+		runtime.MemProfileRate = 1
+
+		// Start pprof server on a different port
+		go func() {
+			logger, _ := logging.NewFileLogger("logs/pprof.log", true)
+			logger.Info(context.Background(), "Starting pprof server", "addr", "localhost:6060")
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				logger.Error(context.Background(), "pprof server failed", "error", err)
+			}
+		}()
+	}
 
 	logger, err := logging.NewFileLogger("logs/server.log", true)
 	if err != nil {

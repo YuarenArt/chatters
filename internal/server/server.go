@@ -21,30 +21,30 @@ import (
 )
 
 type CreateRoomResponse struct {
-	RoomID    websocket.ID `json:"room_id"`
 	HostToken string       `json:"host_token"`
+	RoomID    websocket.ID `json:"room_id"`
 }
 
 type RoomResponse struct {
-	RoomID      websocket.ID `json:"room_id"`
-	HasPassword bool         `json:"has_password"`
 	HostID      string       `json:"host_id,omitempty"`
 	ClientCount int          `json:"client_count"`
+	RoomID      websocket.ID `json:"room_id"`
+	HasPassword bool         `json:"has_password"`
 }
 
 type ErrorResponse struct {
-	Code  int    `json:"code"`
 	Error string `json:"error"`
+	Code  int    `json:"code"`
 }
 
 type Server struct {
 	Handler    websocket.Handler
-	Engine     *gin.Engine
-	Addr       string
-	Middleware []gin.HandlerFunc
 	Logger     logging.Logger
+	Engine     *gin.Engine
 	Metrics    *Metrics
 	Config     *config.Config
+	Addr       string
+	Middleware []gin.HandlerFunc
 }
 
 // Validation constants
@@ -288,7 +288,10 @@ func (s *Server) CreateRoom() func(c *gin.Context) {
 		// Handle empty request body (optional password)
 		if c.Request.ContentLength > 0 {
 			if err := c.BindJSON(&req); err != nil {
-				c.JSON(http.StatusBadRequest, ErrorResponse{400, err.Error()})
+				c.JSON(http.StatusBadRequest, ErrorResponse{
+					Code:  http.StatusBadRequest,
+					Error: "invalid request body",
+				})
 				return
 			}
 		}

@@ -6,12 +6,11 @@ import (
 	"sync"
 )
 
-// Config содержит настройки сервера, базы данных и клиента
-// Теперь включает APIURL для client
 type Config struct {
 	Port         string
 	JWTSecret    string
 	TaskPoolSize string
+	Profiling    string
 }
 
 var (
@@ -27,9 +26,20 @@ func NewConfig() *Config {
 			Port:         configValue("PORT", "port", "8080", "HTTP server port"),
 			JWTSecret:    configValue("SECRET_KEY", "jwt-secret", "supersecret", "JWT secret key"),
 			TaskPoolSize: configValue("TASK_POOL_SIZE", "task-pool-size", "10000", "size of task pool"),
+			Profiling:    configValue("PROFILING", "profiling", "false", "enable pprof profiling (true/false)"),
 		}
 	})
 	return instance
+}
+
+// IsProfilingEnabled returns true if profiling is enabled in the config
+func (c *Config) IsProfilingEnabled() bool {
+	switch c.Profiling {
+	case "true", "1", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // configValue returns the value of a parameter based on the following priority:
