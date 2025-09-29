@@ -96,10 +96,15 @@ func (r *Room) removeClient(client *Client) {
 }
 
 func (r *Room) sendMessage(msg []byte) {
-	var dropped []*Client
-
 	r.mu.RLock()
+	clients := make([]*Client, 0, len(r.Clients))
 	for client := range r.Clients {
+		clients = append(clients, client)
+	}
+	r.mu.RUnlock()
+
+	var dropped []*Client
+	for _, client := range clients {
 		if client.isClosed() {
 			dropped = append(dropped, client)
 			continue
@@ -110,7 +115,6 @@ func (r *Room) sendMessage(msg []byte) {
 			dropped = append(dropped, client)
 		}
 	}
-	r.mu.RUnlock()
 
 	if len(dropped) > 0 {
 		r.mu.Lock()
@@ -217,20 +221,38 @@ func (r *Room) KickClient(username string) bool {
 	return false
 }
 
+// sendExcept sends message to all clients except the sender.
+// It copies client pointers under lock, then sends outside the lock.
 func (r *Room) sendExcept(sender *Client, msg []byte) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
+	clients := make([]*Client, 0, len(r.Clients))
 	for client := range r.Clients {
 		if client == sender {
 			continue
 		}
+		clients = append(clients, client)
+	}
+	r.mu.RUnlock()
+
+	var dropped []*Client
+	for _, client := range clients {
 		select {
 		case client.Send <- msg:
 		default:
-			client.closeOnce.Do(func() {
-				close(client.Send)
-			})
-			delete(r.Clients, client)
+			dropped = append(dropped, client)
 		}
+	}
+
+	if len(dropped) > 0 {
+		r.mu.Lock()
+		for _, client := range dropped {
+			if _, ok := r.Clients[client]; ok {
+				delete(r.Clients, client)
+				client.closeOnce.Do(func() {
+					close(client.Send)
+				})
+			}
+		}
+		r.mu.Unlock()
 	}
 }

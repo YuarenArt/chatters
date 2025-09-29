@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	readDeadline   = 5 * time.Minute
+	readDeadline   = 1 * time.Minute
+	pingPeriod     = (readDeadline * 9) / 10
 	MaxMessageSize = 1 * 1024 * 1024 // 1MB
 	MaxTextLength  = 1000
+	writeDeadline  = 10 * time.Second
 )
 
 type Client struct {
@@ -30,6 +32,14 @@ func (c *Client) Read() {
 		c.Room.Unregister <- c
 		c.Conn.Close()
 	}()
+
+	c.Conn.SetReadLimit(MaxMessageSize)
+
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
+		return nil
+	})
+	go c.startPing()
 
 	for {
 		c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
@@ -66,6 +76,11 @@ func (c *Client) Read() {
 func (c *Client) handleChatMessage(message Message) {
 	var chat ChatMessage
 	if err := json.Unmarshal(message.Data, &chat); err != nil {
+		return
+	}
+
+	if len(chat.Text) > MaxTextLength {
+		log.Printf("Chat message too long from %s: %d chars", c.Username, len(chat.Text))
 		return
 	}
 
@@ -124,11 +139,37 @@ func (c *Client) handleKickMessage(kick KickMessage) {
 
 // Write writes messages to WebSocket connection
 func (c *Client) Write() {
-	defer c.Conn.Close()
+	defer func() {
+		c.closeOnce.Do(func() {
+			close(c.Send)
+		})
+		c.Conn.Close()
+	}()
 
 	for msg := range c.Send {
+		c.Conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			break
+			log.Printf("Write failed for client %s: %v", c.Username, err)
+			c.Room.Unregister <- c
+			return
+		}
+	}
+}
+
+func (c *Client) startPing() {
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := c.Conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+				log.Printf("Ping failed for client %s: %v", c.Username, err)
+				c.Room.Unregister <- c
+				return
+			}
+		case <-c.Room.Stop:
+			return
 		}
 	}
 }

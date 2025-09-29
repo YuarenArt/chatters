@@ -3,6 +3,7 @@ MAIN=cmd/server/main.go
 LOGS=logs/*.log
 PROFILE_DIR=profiles
 STRUCT_DIR=struct_reports
+LOADTEST_DIR=loadtest_results
 VERSION?=0.0.2
 
 USERS?=2000
@@ -10,9 +11,11 @@ SPAWN_RATE?=25
 HOST?=http://localhost:8080
 RUN_TIME?=3m
 PPROF_PORT?=6060
+LOCUST_FILE?=loadtest/loadtest.py
 
-.PHONY: all build run run-profile clean clean-profiles clean-all swagger test test-cover test-race loadtest \
-	struct-find struct-analyze struct-all clean-structs profile-capture profile-cpu profile-mem
+.PHONY: all build run run-profile clean clean-profiles clean-structs clean-loadtest clean-all swagger test test-cover test-race \
+	loadtest loadtest-high-msg loadtest-high-conc loadtest-mixed loadtest-churn loadtest-max-rps \
+	struct-find struct-analyze struct-all clean-structs profile-capture profile-cpu profile-mem struct-help
 
 # ----------------------------
 # Build & Run
@@ -45,7 +48,10 @@ clean-profiles:
 clean-structs:
 	rm -rf $(STRUCT_DIR) || true
 
-clean-all: clean clean-profiles clean-structs
+clean-loadtest:
+	rm -rf $(LOADTEST_DIR) || true
+
+clean-all: clean clean-profiles clean-structs clean-loadtest
 
 # ----------------------------
 # Swagger
@@ -66,10 +72,16 @@ test-race:
 	go test -race ./...
 
 # ----------------------------
-# Load testing
+# Load Testing
+# ----------------------------
+# ----------------------------
+# Load Testing (Web UI)
 # ----------------------------
 loadtest:
-	python -m locust -f loadtest/loadtest.py --users $(USERS) --spawn-rate $(SPAWN_RATE) --host $(HOST) --run-time $(RUN_TIME) --web-port 8090
+	python -m locust -f $(LOCUST_FILE) --host $(HOST) --web-host=localhost  --web-port=8089
+
+loadtest-class-picker:
+	python -m locust -f $(LOCUST_FILE) --host $(HOST) --web-host=localhost --web-port=8090 --class-picker
 
 # ----------------------------
 # Profiling
@@ -162,3 +174,16 @@ struct-help:
 	@echo "  make struct-slop          - Find suboptimal structs"
 	@echo "  make clean-structs        - Remove all generated struct reports\n"
 	@echo "Example: make struct-analyze STRUCT=Client FILE=./pkg/websocket/client.go"
+
+# Help target for load testing
+loadtest-help:
+	@echo "\nLoad Testing Commands:"
+	@echo "  make loadtest             - Run default load test (ChatUser, USERS=$(USERS), SPAWN_RATE=$(SPAWN_RATE), RUN_TIME=$(RUN_TIME))"
+	@echo "  make loadtest-high-msg    - Run high message volume test (10 users, 80% messages)"
+	@echo "  make loadtest-high-conc   - Run high concurrency test (200 users, low message rate)"
+	@echo "  make loadtest-mixed       - Run mixed load test (50 users, balanced tasks)"
+	@echo "  make loadtest-churn       - Run connection churn test (100 users, frequent connect/disconnect)"
+	@echo "  make loadtest-max-rps     - Run max RPS test with increasing users (50 to 2000)"
+	@echo "  make clean-loadtest       - Remove all load test results"
+	@echo "\nResults are saved to $(LOADTEST_DIR)/"
+	@echo "Example: make loadtest-high-msg HOST=http://your-server.com"

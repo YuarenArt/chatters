@@ -41,4 +41,5 @@ Thumbs.db
 /go.sum
 *.test
 *.prof
+*.csv
 /coverage.out

@@ -19,7 +19,7 @@ import (
 )
 
 // @title           Chatters API
-// @version         0.1.1
+// @version         0.1.3
 // @description     Realtime chat rooms with WebSocket and REST
 // @BasePath        /
 // @host            localhost:8080
@@ -29,13 +29,11 @@ func main() {
 
 	cfg := config.NewConfig()
 
-	// Enable profiling if configured
 	if cfg.IsProfilingEnabled() {
-		runtime.SetBlockProfileRate(1)     // Enable block profiling
-		runtime.SetMutexProfileFraction(1) // Enable mutex profiling
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
 		runtime.MemProfileRate = 1
 
-		// Start pprof server on a different port
 		go func() {
 			logger, _ := logging.NewFileLogger("logs/pprof.log", true)
 			logger.Info(context.Background(), "Starting pprof server", "addr", "localhost:6060")
