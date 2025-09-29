@@ -1,183 +1,53 @@
-/**
- * @file chat.js
- * @brief Основная функциональность чата
- * 
- * Этот файл содержит класс ChatWidget, который обрабатывает основную функциональность чата,
- * включая WebSocket-соединение, обработку сообщений и обновление интерфейса.
- * 
- * @mainpage Веб-приложение Chatters
- * @section intro_sec Введение
- * Это клиентская реализация на JavaScript для чат-приложения Chatters в реальном времени.
- * Обеспечивает отзывчивый и интерактивный интерфейс чата с поддержкой WebSocket.
- * 
- * @section features_sec Возможности
- * - Обмен сообщениями в реальном времени
- * - Обмен файлами
- * - Комнатные чаты
- * - Отображение присутствия пользователей
- * 
- * @section dependencies_sec Зависимости
- * - WebSocket API
- * - FileTransferManager (fileTransferManager.js)
- * 
- * @author Команда Chatters
- * @version 1.0
- * @date 2025-09-29
- */
+// chat.js
+// English comments in code per user requirement.
 
-/**
- * @class ChatWidget
- * @brief Основной класс виджета чата
- * 
- * Обрабатывает всю функциональность чата, включая WebSocket-соединение,
- * обработку сообщений и обновление пользовательского интерфейса.
- * Это основной класс интерфейса чата.
- */
+// FileTransferManager has been moved to fileTransferManager.js
+
+// ChatWidget with improved progress bar handling
 class ChatWidget {
-    /**
-     * @brief Создает новый экземпляр ChatWidget
-     * 
-     * Инициализирует виджет чата значениями по умолчанию и запускает процесс инициализации.
-     * Настраивает WebSocket-соединение и обработчики событий.
-     * 
-     * @property {WebSocket} ws - Экземпляр WebSocket соединения
-     * @property {string} currentRoom - ID текущей комнаты чата
-     * @property {string} username - Имя текущего пользователя
-     * @property {boolean} isConnected - Флаг состояния подключения
-     * @property {number} reconnectAttempts - Количество попыток переподключения
-     * @property {number} maxReconnectAttempts - Максимальное количество попыток переподключения (по умолчанию: 5)
-     * @property {number} reconnectDelayBase - Базовая задержка между попытками переподключения в мс (по умолчанию: 1000)
-     * @property {Object} fileManager - Экземпляр FileTransferManager для обработки передачи файлов
-     * @property {Worker} transferWorker - Web Worker для фоновой обработки передачи файлов
-     */
     constructor() {
-        /** @private */
         this.ws = null;
-        /** @private */
         this.currentRoom = null;
-        /** @private */
         this.username = '';
-        /** @private */
         this.isConnected = false;
-        /** @private */
         this.reconnectAttempts = 0;
-        /** @private */
         this.maxReconnectAttempts = window.ChattersApp?.config?.RECONNECT_ATTEMPTS || 5;
-        /** @private */
         this.reconnectDelayBase = window.ChattersApp?.config?.RECONNECT_DELAY || 1000;
-        /** @private */
         this.fileManager = null;
-        /** @private */
         this.transferWorker = null;
-        
         this.init();
     }
 
-    /**
-     * @brief Инициализирует виджет чата
-     * 
-     * Настраивает привязки событий и инициализирует интерфейс чата.
-     * Вызывается автоматически при создании нового экземпляра ChatWidget.
-     * 
-     * @throws {Error} Если инициализация не удалась
-     * @private
-     */
     init() {
         try {
             this.bindEvents();
         } catch (error) {
             console.error('ChatWidget init error:', error);
             this.showNotification('Error', 'Failed to initialize chat', 'error');
-            throw error; // Re-throw to allow handling by the caller
         }
     }
 
-    /**
-     * @brief Привязывает события DOM к методам виджета чата
-     * 
-     * Настраивает обработчики событий для элементов интерфейса чата после того,
-     * как будут доступны все необходимые DOM-элементы.
-     * 
-     * @private
-     * @returns {Promise} Выполняется после завершения привязки событий
-     */
     bindEvents() {
-        this.waitForElements()
-            .then(() => {
-                this.attachEventListeners();
-            })
-            .catch(error => {
-                console.error('Bind events failed:', error);
-                this.showNotification('Error', 'Failed to bind chat events', 'error');
-                throw error; // Re-throw to allow handling by the caller
-            });
+        this.waitForElements().then(() => {
+            this.attachEventListeners();
+        }).catch(error => {
+            console.error('Bind events failed:', error);
+            this.showNotification('Error', 'Failed to bind chat events', 'error');
+        });
     }
 
-    /**
-     * @brief Ожидает загрузки всех необходимых DOM-элементов
-     * 
-     * @private
-     * @returns {Promise} Выполняется, когда все необходимые элементы найдены
-     * @throws {Error} Если какой-либо обязательный элемент не найден в течение таймаута
-     */
     async waitForElements() {
-        const coreElements = [
-            'leaveBtn', 'sendBtn', 'messageInput', 
-            'chatMessages', 'currentRoomId', 'onlineCount', 
-            'uploadFileBtn', 'fileInput'
-        ];
-        
-        try {
-            for (const id of coreElements) {
-                await this.waitForElement(id);
-            }
-        } catch (error) {
-            console.error(`Failed to find required element: ${error.message}`);
-            throw new Error(`UI initialization failed: ${error.message}`);
+        const coreElements = ['leaveBtn', 'sendBtn', 'messageInput', 'chatMessages', 'currentRoomId', 'onlineCount', 'uploadFileBtn', 'fileInput'];
+        for (const id of coreElements) {
+            await this.waitForElement(id);
         }
     }
 
-    /**
-     * @brief Ожидает появления конкретного DOM-элемента
-     * 
-     * @private
-     * @param {string} id - ID элемента, которого нужно дождаться
-     * @param {number} [timeout=6000] - Максимальное время ожидания в миллисекундах
-     * @returns {Promise<HTMLElement>} Выполняется с найденным элементом
-     * @throws {Error} Если элемент не найден в течение таймаута
-     */
     waitForElement(id, timeout = 6000) {
         return new Promise((resolve, reject) => {
-            // Check if element exists immediately
             const el = document.getElementById(id);
             if (el) return resolve(el);
-            
-            // Set up timeout for element not found
-            const tid = setTimeout(() => 
-                reject(new Error(`Element #${id} not found after ${timeout}ms`)), 
-                timeout
-            );
-            
-            // Set up mutation observer to watch for element addition
-            const observer = new MutationObserver(() => {
-                const element = document.getElementById(id);
-                if (element) {
-                    clearTimeout(tid);
-                    observer.disconnect();
-                    resolve(element);
-                }
-            });
-            
-            // Start observing the document with the configured parameters
-            observer.observe(document.body, { 
-                childList: true, 
-                subtree: true 
-            });
-            
-            // Cleanup function in case of timeout
-            if (tid) {
-                window.addEventListener('beforeunload', () => clearTimeout(tid));
-            }
+            const tid = setTimeout(() => reject(new Error(`Element #${id} not found`)), timeout);
             const obs = new MutationObserver(() => {
                 const found = document.getElementById(id);
                 if (found) {
