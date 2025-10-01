@@ -24,6 +24,9 @@ go.work.sum
 # Dependency directories
 Godeps/
 
+# Python cache
+__pycache__/
+
 # IDE/editor directories
 .idea/
 .vscode/

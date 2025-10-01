@@ -1,0 +1,161 @@
+/**
+@file create-room.js
+@brief Виджет создания комнаты чата
+@author Ваше имя
+@date Сентябрь 2024
+
+@class CreateRoomWidget
+@brief Класс для управления созданием и настройкой комнат чата
+
+Обеспечивает функциональность создания новых комнат, настройки паролей
+и управления доступом к комнатам.
+
+@subsection features_sec Основные возможности:
+- Создание новых комнат чата
+- Установка пароля для комнаты
+- Копирование ID комнаты в буфер обмена
+- Валидация вводимых данных
+- Обратная связь с пользователем
+
+@subsection usage_sec Пример использования:
+@code{.js}
+const roomWidget = new CreateRoomWidget();
+// Открыть модальное окно создания комнаты
+document.getElementById('createRoomBtn').addEventListener('click', () => {
+    roomWidget.showModal();
+});
+@endcode
+
+@var CreateRoomWidget#isInitialized
+@brief Флаг инициализации виджета
+@type {boolean}
+
+@var CreateRoomWidget#currentRoomId
+@brief ID текущей активной комнаты
+@type {string}
+
+@fn CreateRoomWidget#constructor
+@brief Конструктор класса CreateRoomWidget
+Инициализирует виджет создания комнаты.
+
+@fn CreateRoomWidget#init
+@brief Инициализация виджета
+Настраивает обработчики событий и проверяет доступность элементов DOM.
+
+@fn CreateRoomWidget#bindEvents
+@brief Привязка обработчиков событий
+Находит и настраивает обработчики для элементов управления.
+
+@fn CreateRoomWidget#waitForElements
+@brief Ожидание загрузки элементов DOM
+@returns {Promise<void>}
+@async
+
+@fn CreateRoomWidget#waitForElement
+@brief Ожидание появления элемента
+@param {string} elementId - ID элемента
+@param {number} [timeout=3000] - Таймаут ожидания в мс
+@returns {Promise<HTMLElement>}
+@async
+
+@fn CreateRoomWidget#attachEventListeners
+@brief Присоединение обработчиков событий
+Настраивает обработчики для кнопок и форм.
+
+@fn CreateRoomWidget#createRoom
+@brief Создание новой комнаты
+@param {string} password - Пароль для комнаты (опционально)
+@returns {Promise<void>}
+@async
+
+@fn CreateRoomWidget#handleCreateRoomResponse
+@brief Обработка ответа сервера на создание комнаты
+@param {Object} data - Данные ответа сервера
+@param {string} password - Пароль комнаты
+
+@fn CreateRoomWidget#showModal
+@brief Показ модального окна создания комнаты
+
+@fn CreateRoomWidget#hideModal
+@brief Скрытие модального окна
+
+@fn CreateRoomWidget#showError
+@brief Показ сообщения об ошибке
+@param {string} message - Текст сообщения об ошибке
+
+@fn CreateRoomWidget#showSuccess
+@brief Показ сообщения об успехе
+@param {string} message - Текст сообщения
+
+@fn CreateRoomWidget#copyToClipboard
+@brief Копирование текста в буфер обмена
+@param {string} text - Текст для копирования
+@returns {Promise<void>}
+@async
+
+@fn CreateRoomWidget#validatePassword
+@brief Валидация пароля
+@param {string} password - Пароль для проверки
+@returns {boolean} Валидность пароля
+
+@example
+// Инициализация виджета
+const roomWidget = new CreateRoomWidget();
+
+// Обработка создания комнаты
+document.getElementById('createRoomForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('roomPassword').value;
+    await roomWidget.createRoom(password);
+});
+*/
+
+/**
+@page room_creation Создание комнаты
+
+@section room_creation_sec Процесс создания комнаты
+
+1. Пользователь нажимает кнопку "Создать комнату"
+2. Открывается модальное окно с формой
+3. Пользователь вводит пароль (опционально)
+4. При успешном создании отображается ID комнаты
+5. ID можно скопировать в буфер обмена
+
+@subsection security_sec Безопасность
+- Пароль хешируется перед отправкой на сервер
+- ID комнаты генерируется на сервере
+- Минимальная длина пароля - 4 символа
+
+@subsection ui_sec Элементы управления
+- Поле ввода пароля
+- Кнопка создания комнаты
+- Кнопка копирования ID
+- Индикатор загрузки
+- Сообщения об ошибках
+*/
+
+/**
+@defgroup room_group Модуль комнат
+@{
+*/
+
+/**
+@fn CreateRoomWidget#onRoomCreated
+@brief Событие успешного создания комнаты
+@event CreateRoomWidget#onRoomCreated
+@type {object}
+@property {string} roomId - ID созданной комнаты
+@property {string} [password] - Пароль комнаты (если установлен)
+*/
+
+/**
+@fn CreateRoomWidget#onError
+@brief Событие ошибки
+@event CreateRoomWidget#onError
+@type {object}
+@property {string} message - Сообщение об ошибке
+*/
+
+/**
+@} // Конец группы room_group
+*/

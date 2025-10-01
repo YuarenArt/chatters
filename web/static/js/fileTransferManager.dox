@@ -1,0 +1,195 @@
+/**
+@file fileTransferManager.js
+@brief Модуль управления передачей файлов
+@author Ваше имя
+@date Сентябрь 2024
+
+@class FileTransferManager
+@brief Класс для управления передачей файлов между пользователями
+
+Использует WebRTC для прямой передачи файлов между клиентами, 
+снижая нагрузку на сервер.
+
+@subsection features_sec Основные возможности:
+- Анонсирование доступных файлов
+- Запрос на скачивание файлов
+- Передача файлов через WebRTC
+- Отслеживание прогресса передачи
+- Обработка ошибок и восстановление
+
+@subsection usage_sec Пример использования:
+@code{.js}
+const ftManager = new FileTransferManager(ws, username, uiHandlers);
+const file = document.getElementById('fileInput').files[0];
+const transferId = ftManager.announceFile(file);
+@endcode
+
+@var FileTransferManager#availableFiles
+@brief Карта доступных файлов
+@type {Map<string, Object>}
+
+@var FileTransferManager#transfers
+@brief Активные передачи файлов
+@type {Map<string, Object>}
+
+@var FileTransferManager#peerConns
+@brief WebRTC соединения с пирами
+@type {Map<string, RTCPeerConnection>}
+
+@var FileTransferManager#iceConfig
+@brief Конфигурация ICE серверов
+@type {Object}
+
+@var FileTransferManager#chunkSize
+@brief Размер чанка для передачи (в байтах)
+@type {number}
+
+@fn FileTransferManager#constructor
+@brief Конструктор класса FileTransferManager
+@param {WebSocket} ws - WebSocket соединение
+@param {string} username - Имя текущего пользователя
+@param {Object} [uiHandlers={}] - Обработчики для обновления UI
+
+@fn FileTransferManager#announceFile
+@brief Анонсирует файл для скачивания
+@param {File} file - Файл для передачи
+@returns {string} ID созданной передачи
+
+@fn FileTransferManager#requestFile
+@brief Запрашивает файл для скачивания
+@param {string} transferId - ID передачи
+@param {string} owner - Владелец файла
+
+@fn FileTransferManager#handleSignaling
+@brief Обработчик сигнальных сообщений
+@param {Object} msg - Входящее сообщение
+@async
+
+@fn FileTransferManager#createPeerConnection
+@brief Создает новое WebRTC соединение
+@param {string} peerId - ID пира
+@returns {RTCPeerConnection}
+
+@fn FileTransferManager#setupDataChannel
+@brief Настраивает канал передачи данных
+@param {RTCDataChannel} channel - Канал данных
+@param {string} peerId - ID пира
+@param {string} transferId - ID передачи
+
+@fn FileTransferManager#sendFile
+@brief Отправляет файл через WebRTC
+@param {string} transferId - ID передачи
+@param {string} peerId - ID получателя
+@async
+
+@fn FileTransferManager#handleFileChunk
+@brief Обрабатывает полученный чанк файла
+@param {Object} data - Данные чанка
+@param {RTCDataChannel} channel - Канал данных
+
+@fn FileTransferManager#updateProgress
+@brief Обновляет прогресс передачи
+@param {string} transferId - ID передачи
+@param {number} loaded - Загружено байт
+@param {number} total - Всего байт
+@param {string} [peerId] - ID пира (опционально)
+
+@fn FileTransferManager#sendSignaling
+@brief Отправляет сигнальное сообщение
+@param {string} type - Тип сообщения
+@param {Object} data - Данные сообщения
+
+@fn FileTransferManager#generateId
+@brief Генерирует уникальный ID
+@returns {string} Уникальный идентификатор
+
+@fn FileTransferManager#cleanupTransfer
+@brief Очищает ресурсы передачи
+@param {string} transferId - ID передачи
+@param {string} [peerId] - ID пира (опционально)
+
+@example
+// Инициализация менеджера
+const ftManager = new FileTransferManager(ws, 'user123', {
+    updateProgress: (transferId, progress) => {
+        console.log(`Прогресс: ${progress}%`);
+    },
+    onFileComplete: (transferId, file) => {
+        console.log('Файл получен:', file.name);
+    }
+});
+
+// Анонсирование файла
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const transferId = ftManager.announceFile(file);
+        console.log('Файл доступен для скачивания:', transferId);
+    }
+});
+
+// Обработка входящих сигнальных сообщений
+ws.on('message', (msg) => {
+    try {
+        const data = JSON.parse(msg);
+        if (data.type && data.type.startsWith('file-')) {
+            ftManager.handleSignaling(data);
+        }
+    } catch (e) {
+        console.error('Ошибка обработки сообщения:', e);
+    }
+});
+*/
+
+/**
+@page filetransfer_sec Передача файлов
+
+@section webrtc_sec Технология WebRTC
+Для передачи файлов используется технология WebRTC, которая позволяет устанавливать
+прямые соединения между браузерами пользователей, минуя сервер. Это значительно
+снижает нагрузку на сервер и увеличивает скорость передачи.
+
+@subsection security_sec Безопасность
+- Все файлы передаются напрямую между пользователями
+- Сервер не хранит переданные файлы
+- Поддерживается шифрование данных
+
+@subsection limitations_sec Ограничения
+- Требуется поддержка WebRTC в браузере
+- Могут быть проблемы с NAT и брандмауэрами
+- Максимальный размер файла ограничен доступной памятью
+*/
+
+/**
+@defgroup filetransfer_group Модуль передачи файлов
+@{
+*/
+
+/**
+@fn FileTransferManager#onFileProgress
+@brief Обработчик обновления прогресса
+@callback FileProgressCallback
+@param {string} transferId - ID передачи
+@param {number} progress - Текущий прогресс (0-100)
+*/
+
+/**
+@fn FileTransferManager#onFileComplete
+@brief Обработчик завершения загрузки
+@callback FileCompleteCallback
+@param {string} transferId - ID передачи
+@param {File} file - Загруженный файл
+*/
+
+/**
+@fn FileTransferManager#onError
+@brief Обработчик ошибок
+@callback FileErrorCallback
+@param {string} message - Сообщение об ошибке
+@param {Error} [error] - Объект ошибки (опционально)
+*/
+
+/**
+@} // Конец группы filetransfer_group
+*/

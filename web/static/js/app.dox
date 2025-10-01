@@ -1,0 +1,166 @@
+/**
+@file app.js
+@brief Главный модуль приложения Chatters
+@author Ваше имя
+@date Сентябрь 2024
+
+@mainpage Документация JavaScript кода Chatters
+@tableofcontents
+
+@section app_sec Модуль приложения
+
+@class ChatApp
+@brief Основной класс приложения Chatters
+
+Класс, управляющий инициализацией и работой всего приложения чата.
+
+@subsection features_sec Основные возможности:
+- Инициализация всех виджетов приложения
+- Управление состоянием приложения
+- Обработка глобальных событий
+- Управление уведомлениями
+- Работа с локальным хранилищем
+
+@subsection usage_sec Пример использования:
+@code{.js}
+const app = new ChatApp();
+@endcode
+
+@var ChatApp#isInitialized
+@brief Флаг инициализации приложения
+@type {boolean}
+
+@var ChatApp#widgets
+@brief Хранилище виджетов приложения
+@type {Object}
+
+@var ChatApp#isJoining
+@brief Флаг состояния подключения к комнате
+@type {boolean}
+
+@fn ChatApp#constructor
+@brief Конструктор класса ChatApp
+Инициализирует новое приложение чата.
+
+@fn ChatApp#init
+@brief Инициализация приложения
+Асинхронно инициализирует все компоненты приложения.
+@async
+@throws {Error} В случае ошибки инициализации
+
+@fn ChatApp#initializeWidgets
+@brief Инициализация виджетов
+Создает и настраивает все виджеты приложения.
+@async
+
+@fn ChatApp#bindMainEvents
+@brief Привязка основных обработчиков событий
+Настраивает глобальные обработчики событий приложения.
+
+@fn ChatApp#loadFromStorage
+@brief Загрузка данных из локального хранилища
+Восстанавливает состояние приложения из localStorage.
+
+@fn ChatApp#showConnectionForm
+@brief Показ формы подключения
+Отображает форму для подключения к чату.
+
+@fn ChatApp#handleJoinRoom
+@brief Обработчик подключения к комнате
+@param {Event} event - Событие отправки формы
+@async
+
+@fn ChatApp#showNotification
+@brief Показ уведомления
+@param {string} title - Заголовок уведомления
+@param {string} message - Текст сообщения
+@param {string} [type='info'] - Тип уведомления (info, success, error, warning)
+
+@fn ChatApp#waitForWidgets
+@brief Ожидание загрузки виджетов
+@returns {Promise<void>}
+@async
+
+@fn ChatApp#showLoading
+@brief Показать индикатор загрузки
+@param {boolean} show - Показать/скрыть индикатор
+
+@fn ChatApp#debounce
+@brief Функция для устранения дребезга
+@param {Function} func - Функция для вызова
+@param {number} wait - Время задержки в мс
+@returns {Function} Обернутая функция с задержкой
+
+@example
+// Создание и инициализация приложения
+const app = new ChatApp();
+
+// Показ уведомления
+app.showNotification('Успех', 'Приложение загружено', 'success');
+*/
+
+/**
+@page app_usage Пример использования приложения
+
+@code{.js}
+// Инициализация приложения
+const app = new ChatApp();
+
+// Вручную показать уведомление
+app.showNotification('Приветствие', 'Добро пожаловать в Chatters!');
+
+// Обработка подключения к комнате
+document.getElementById('joinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await app.handleJoinRoom(e);
+});
+@endcode
+*/
+
+/**
+@defgroup app_group Модуль приложения
+@{
+*/
+
+/**
+@var ChatApp#config
+@brief Конфигурация приложения
+@type {Object}
+*/
+
+/**
+@var ChatApp#currentRoom
+@brief Текущая комната чата
+@type {string}
+*/
+
+/**
+@fn ChatApp#handleError
+@brief Обработчик ошибок приложения
+@param {Error} error - Объект ошибки
+@param {string} [context=''] - Контекст возникновения ошибки
+*/
+
+/**
+@fn ChatApp#saveToStorage
+@brief Сохранение состояния в локальное хранилище
+@param {string} key - Ключ для сохранения
+@param {*} value - Значение для сохранения
+*/
+
+/**
+@fn ChatApp#getFromStorage
+@brief Получение данных из локального хранилища
+@param {string} key - Ключ для получения данных
+@returns {*} Сохраненное значение или null
+*/
+
+/**
+@fn ChatApp#clearStorage
+@brief Очистка локального хранилища
+@param {string} [key] - Ключ для очистки (если не указан, очищается все хранилище)
+*/
+
+/**
+@} // Конец группы app_group
+*/

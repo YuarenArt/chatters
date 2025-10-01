@@ -1,0 +1,332 @@
+/**
+@mainpage Документация по JavaScript коду Chatters
+@tableofcontents
+
+@section intro_sec Введение
+Данная документация описывает JavaScript код веб-приложения Chatters, которое обеспечивает
+функциональность чата в реальном времени с использованием WebSocket.
+
+@section chatwidget_sec Класс ChatWidget
+Основной класс, управляющий функциональностью чата.
+
+@subsection features_sec Основные возможности:
+- Подключение к комнатам чата
+- Обмен текстовыми сообщениями
+- Передача файлов
+- Управление соединением
+- Обработка ошибок
+
+@subsection usage_sec Пример использования:
+@code{.js}
+const chat = new ChatWidget();
+chat.joinRoom('room1', 'username');
+@endcode
+
+@file chat.js
+@brief Основной модуль чата, содержащий класс ChatWidget
+@author Ваше имя
+@date Сентябрь 2024
+*/
+
+/**
+@page chatwidget_page Документация ChatWidget
+@brief Класс для управления чатом
+
+Подробное описание функциональности чата.
+*/
+
+/**
+@example
+// Пример использования ChatWidget
+const chat = new ChatWidget();
+chat.joinRoom('room1', 'username');
+*/
+
+/**
+@defgroup chat_group Модуль чата
+@{
+*/
+
+/**
+@class ChatWidget
+@brief Основной класс для управления чатом
+
+Класс предоставляет функциональность для:
+- Подключения к комнатам чата
+- Отправки и получения сообщений
+- Управления соединением
+- Обработки ошибок
+
+@example
+const chat = new ChatWidget();
+chat.joinRoom('room1', 'username');
+*/
+
+/**
+@var ChatWidget#ws
+@brief WebSocket соединение
+@type {WebSocket}
+*/
+
+/**
+@var ChatWidget#currentRoom
+@brief Текущая комната чата
+@type {string}
+*/
+
+/**
+@var ChatWidget#username
+@brief Имя текущего пользователя
+@type {string}
+*/
+
+/**
+@var ChatWidget#isConnected
+@brief Флаг состояния подключения
+@type {boolean}
+*/
+
+/**
+@var ChatWidget#fileManager
+@brief Менеджер загрузки файлов
+@type {FileTransferManager}
+*/
+
+/**
+@fn ChatWidget#constructor
+@brief Конструктор класса ChatWidget
+
+Инициализирует новый экземпляр чата и настраивает базовые обработчики событий.
+*/
+
+/**
+@fn ChatWidget#init
+@brief Инициализация чата
+
+Выполняет начальную настройку чата и привязку обработчиков событий.
+@throws {Error} Если не удалось инициализировать чат
+*/
+
+/**
+@fn ChatWidget#bindEvents
+@brief Привязка обработчиков событий
+
+Настраивает обработчики для элементов управления чатом.
+*/
+
+/**
+@fn ChatWidget#joinRoom
+@brief Подключение к комнате чата
+@param {string} roomId - Идентификатор комнаты
+@param {string} username - Имя пользователя
+@param {string} [password=''] - Пароль комнаты (опционально)
+@param {string} [hostToken=''] - Токен хоста (опционально)
+@returns {Promise<void>}
+@throws {Error} Если roomId или username не указаны
+*/
+
+/**
+@fn ChatWidget#sendMessage
+@brief Отправка сообщения в чат
+
+Получает текст из поля ввода и отправляет его в текущую комнату.
+*/
+
+/**
+@fn ChatWidget#leaveRoom
+@brief Выход из текущей комнаты
+
+Закрывает соединение с текущей комнатой и очищает состояние чата.
+*/
+
+/**
+@fn ChatWidget#handleFileSelected
+@brief Обработчик выбора файла
+@param {FileList} files - Список выбранных файлов
+*/
+
+/**
+@fn ChatWidget#showNotification
+@brief Показ уведомления
+@param {string} title - Заголовок уведомления
+@param {string} message - Текст сообщения
+@param {string} [type='info'] - Тип уведомления (info, success, error)
+*/
+
+/**
+@fn ChatWidget#updateUI
+@brief Обновление пользовательского интерфейса
+
+Обновляет состояние элементов управления в зависимости от состояния чата.
+*/
+
+/**
+@fn ChatWidget#createMessageElement
+@brief Создание элемента сообщения
+@param {Object} data - Данные сообщения
+@param {string} data.sender - Отправитель
+@param {string} data.message - Текст сообщения
+@param {string} [data.timestamp] - Временная метка
+@param {string} [data.type] - Тип сообщения
+
+@class ChatWidget
+@brief Основной класс, реализующий функциональность чата
+@description
+Предоставляет методы для работы с чатом, включая подключение к комнатам,
+отправку сообщений и управление соединением.
+
+@constructor
+@description Создает новый экземпляр ChatWidget
+@example
+const chat = new ChatWidget();
+
+@method init
+@brief Инициализирует виджет чата
+@description
+Выполняет начальную настройку виджета, включая привязку событий.
+
+@method bindEvents
+@brief Привязывает обработчики событий
+@description
+Настраивает обработчики для элементов управления чатом.
+
+@method waitForElements
+@brief Ожидает загрузки необходимых DOM-элементов
+@param {string[]} [elements] - Массив ID элементов
+@returns {Promise<void>}
+@description
+Ожидает появления всех указанных элементов в DOM.
+
+@method waitForElement
+@brief Ожидает появления элемента
+@param {string} id - ID элемента
+@param {number} [timeout=6000] - Таймаут ожидания в мс
+@returns {Promise<HTMLElement>}
+@description
+Ожидает появления элемента с указанным ID.
+
+@method attachEventListeners
+@brief Привязывает обработчики событий к элементам
+@description
+Настраивает обработчики для кнопок и полей ввода чата.
+
+@method connectWebSocket
+@brief Устанавливает WebSocket соединение
+@param {string} roomId - ID комнаты
+@param {string} username - Имя пользователя
+@returns {Promise<void>}
+@description
+Выполняет подключение к WebSocket серверу с указанными параметрами.
+
+@method joinRoom
+@brief Подключается к указанной комнате
+@param {string} roomId - ID комнаты
+@param {string} username - Имя пользователя
+@description
+Выполняет подключение к указанной комнате чата.
+
+@method sendMessage
+@brief Отправляет текстовое сообщение
+@param {string} message - Текст сообщения
+@description
+Отправляет текстовое сообщение в текущую комнату чата.
+
+@method handleIncomingMessage
+@brief Обрабатывает входящее сообщение
+@param {Object} data - Данные сообщения
+@description
+Обрабатывает входящее сообщение и отображает его в чате.
+
+@method showNotification
+@brief Показывает уведомление
+@param {string} title - Заголовок уведомления
+@param {string} message - Текст уведомления
+@param {string} [type='info'] - Тип уведомления (info, success, error, warning)
+@description
+Отображает уведомление для пользователя.
+
+@method updateOnlineCount
+@brief Обновляет счетчик онлайн
+@param {number} count - Количество пользователей
+@description
+Обновляет отображение количества пользователей в комнате.
+
+@method handleFileUpload
+@brief Обрабатывает загрузку файла
+@param {Event} event - Событие выбора файла
+@description
+Запускает процесс загрузки выбранного файла.
+
+@method disconnect
+@brief Отключается от чата
+@description
+Выполняет отключение от текущей комнаты чата и очистку ресурсов.
+
+@method reconnect
+@brief Пытается переподключиться к чату
+@description
+Выполняет попытку переподключения с экспоненциальной задержкой.
+
+@method cleanup
+@brief Выполняет очистку ресурсов
+@description
+Освобождает ресурсы и отписывается от событий.
+@returns {HTMLElement} Созданный элемент сообщения
+*/
+
+/**
+@fn ChatWidget#handleWebSocketMessage
+@brief Обработчик входящих WebSocket сообщений
+@param {MessageEvent} event - Событие сообщения
+*/
+
+/**
+@fn ChatWidget#handleConnectionError
+@brief Обработчик ошибок соединения
+@param {Error} error - Объект ошибки
+*/
+
+/**
+@fn ChatWidget#reconnect
+@brief Попытка переподключения
+
+Пытается переподключиться к серверу с экспоненциальной задержкой.
+*/
+
+/**
+@fn ChatWidget#cleanup
+@brief Очистка ресурсов
+
+Освобождает ресурсы и отключает все обработчики событий.
+*/
+
+/**
+@fn ChatWidget#updateOnlineCount
+@brief Обновление счетчика онлайн
+@param {number} count - Количество пользователей онлайн
+*/
+
+/**
+@fn ChatWidget#scrollToBottom
+@brief Прокрутка к последнему сообщению
+
+Прокручивает окно чата к последнему сообщению.
+*/
+
+/**
+@fn ChatWidget#formatTime
+@brief Форматирование времени
+@param {Date} [date=new Date()] - Дата для форматирования
+@returns {string} Отформатированная строка времени
+*/
+
+/**
+@fn ChatWidget#sanitize
+@brief Очистка HTML-строки
+@param {string} str - Входная строка
+@returns {string} Очищенная строка
+*/
+
+/**
+@} // Конец группы chat_group
+*/

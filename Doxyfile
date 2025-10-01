@@ -1,0 +1,97 @@
+# Doxyfile для документации JavaScript кода
+
+# Проект
+PROJECT_NAME           = "Chatters"
+PROJECT_NUMBER         = 1.0
+PROJECT_BRIEF          = "Веб-приложение для обмена сообщениями в реальном времени"
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = Russian
+
+# Входные файлы
+INPUT                  = web/static/js
+FILE_PATTERNS          = *.js *.dox
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = *node_modules* *bower_components* *dist* *build*
+
+# Распознавание файлов
+EXTENSION_MAPPING      = .js=javascript
+
+# Извлечение документации
+# Настройки извлечения документации
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_METHODS  = YES
+EXTRACT_ANON_NSPACES   = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+HIDE_FRIEND_COMPOUNDS  = NO
+HIDE_IN_BODY_DOCS      = NO
+
+# Генерация документации
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_TIMESTAMP         = YES
+GENERATE_LATEX         = NO
+GENERATE_RTF           = YES
+RTF_OUTPUT             = rtf
+RTF_HYPERLINKS         = YES
+
+# JavaScript поддержка
+JAVADOC_AUTOBRIEF     = YES
+QT_AUTOBRIEF          = YES
+MULTILINE_CPP_IS_BRIEF = YES
+OPTIMIZE_OUTPUT_JAVA   = YES
+TYPEDEF_HIDES_STRUCT  = YES
+
+# Настройка вывода
+SHOW_INCLUDE_FILES     = NO
+SHOW_GROUPED_MEMB_INC  = NO
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = NO
+
+# Управление разделами
+TOC_INCLUDE_HEADINGS   = 2
+TOC_EXPAND_LEVEL       = 2
+
+# Поиск
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+
+# Поиск по коду
+ALPHABETICAL_INDEX     = YES
+COLS_IN_ALPHA_INDEX   = 3
+
+# Графики и диаграммы
+HAVE_DOT              = YES
+CLASS_DIAGRAMS        = YES
+HIDE_UNDOC_RELATIONS  = NO
+COLLABORATION_GRAPH   = YES
+GROUP_GRAPHS          = YES
+UML_LOOK              = YES
+UML_LIMIT_NUM_FIELDS  = 10
+DOT_UML_DETAILS       = YES
+DOT_WRAP_THRESHOLD    = 17
+
+# Прочее
+QUIET                 = NO
+WARNINGS              = YES
+WARN_IF_UNDOCUMENTED  = YES
+WARN_IF_DOC_ERROR     = YES
+WARN_NO_PARAMDOC      = YES
+WARN_AS_ERROR         = NO
+
+# Настройка для JavaScript
+TYPEDEF_HIDES_STRUCT  = NO
+SORT_BRIEF_DOCS       = YES
+SORT_MEMBER_DOCS      = YES
+SORT_BRIEF_DOCS       = YES
+SORT_MEMBERS_CTORS_1ST = YES
+SORT_GROUP_NAMES      = YES
+SORT_BY_SCOPE_NAME    = YES
+STRICT_PROTO_MATCHING = NO
+GENERATE_TREEVIEW     = YES
+FULL_PATH_NAMES       = YES
+STRIP_FROM_PATH       = web/static/js/
