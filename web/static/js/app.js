@@ -1,12 +1,84 @@
+/**
+ * @file app.js
+ * @brief Модуль главного приложения Chatters
+ * @ingroup app_module
+ * 
+ * @details Этот модуль содержит основной класс ChatApp, который управляет
+ * инициализацией приложения, координацией виджетов, обработкой подключения
+ * к комнатам и валидацией пользовательского ввода. Класс является центральным
+ * компонентом фронтенд-архитектуры приложения.
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ * 
+ * @defgroup app_module Модуль приложения
+ * @brief Основной модуль приложения Chatters
+ * @details Содержит точку входа и основные настройки приложения,
+ * а также управление жизненным циклом и виджетами.
+ */
 
+/**
+ * @class ChatApp
+ * @brief Главный класс приложения для управления чат-системой
+ * 
+ * @details ChatApp является центральным контроллером приложения, который:
+ * - Инициализирует все виджеты (ChatWidget, CreateRoomWidget)
+ * - Управляет жизненним циклом приложения
+ * - Обрабатывает подключение пользователей к комнатам
+ * - Валидирует пользовательский ввод
+ * - Координирует взаимодействие между компонентами
+ * - Управляет состоянием приложения и локальным хранилищем
+ * 
+ * Класс следует паттерну Singleton через глобальный объект window.ChatApp
+ * и обеспечивает единую точку входа для всех операций приложения.
+ */
 class ChatApp {
+    /**
+     * @brief Конструктор класса ChatApp
+     * 
+     * @details Инициализирует основные свойства приложения и запускает
+     * процесс инициализации. Конструктор создает пустой объект виджетов
+     * и устанавливает флаги состояния.
+     */
     constructor() {
+        /**
+         * @var isInitialized
+         * @brief Флаг успешной инициализации приложения
+         * @details Устанавливается в true после завершения всех этапов инициализации
+         */
         this.isInitialized = false;
+        
+        /**
+         * @var widgets
+         * @brief Объект, содержащий все виджеты приложения
+         * @details Хранит экземпляры ChatWidget и CreateRoomWidget для доступа из других модулей
+         */
         this.widgets = {};
-        this.isJoining = false; // Track joining state
+        
+        /**
+         * @var isJoining
+         * @brief Флаг процесса подключения к комнате
+         * @details Предотвращает множественные одновременные попытки подключения
+         */
+        this.isJoining = false;
+        
         this.init();
     }
 
+    /**
+     * @brief Асинхронная инициализация приложения
+     * 
+     * @details Выполняет следующие этапы инициализации:
+     * 1. Ожидает загрузки DOM
+     * 2. Инициализирует виджеты (ChatWidget, CreateRoomWidget)
+     * 3. Привязывает обработчики событий
+     * 4. Загружает данные из localStorage
+     * 5. Отображает форму подключения
+     * 
+     * @return {Promise<void>} Промис, разрешающийся после завершения инициализации
+     * @throws {Error} Выбрасывает ошибку при сбое инициализации
+     */
     async init() {
         try {
             console.log('Initializing ChatApp...');
@@ -32,6 +104,16 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Инициализация виджетов приложения
+     * 
+     * @details Создает экземпляры ChatWidget и CreateRoomWidget после
+     * проверки их доступности. Предотвращает дублирование виджетов.
+     * Регистрирует виджеты в глобальном объекте ChattersApp.
+     * 
+     * @return {Promise<void>} Промис, разрешающийся после создания виджетов
+     * @throws {Error} Выбрасывает ошибку, если виджеты не загружены
+     */
     async initializeWidgets() {
         try {
             await this.waitForWidgets();
@@ -60,6 +142,17 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Ожидание загрузки классов виджетов
+     * 
+     * @details Периодически проверяет доступность конструкторов
+     * CreateRoomWidget и ChatWidget в глобальной области видимости.
+     * Использует polling с интервалом 100мс.
+     * 
+     * @param {number} timeout Максимальное время ожидания в миллисекундах (по умолчанию 10000)
+     * @return {Promise<void>} Промис, разрешающийся при загрузке виджетов
+     * @throws {Error} Выбрасывает ошибку при превышении таймаута
+     */
     async waitForWidgets(timeout = 10000) {
         return new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => {
@@ -79,6 +172,16 @@ class ChatApp {
         });
     }
 
+    /**
+     * @brief Привязка основных обработчиков событий
+     * 
+     * @details Устанавливает обработчики для:
+     * - Кнопок подключения к комнате и создания комнаты
+     * - Нажатия Enter в полях ввода
+     * Использует debounce для предотвращения множественных вызовов.
+     * 
+     * @return {void}
+     */
     bindMainEvents() {
         try {
             const debouncedJoinRoom = debounce(() => this.joinRoom(), 500);
@@ -102,6 +205,17 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Привязка обработчика события к элементу DOM
+     * 
+     * @details Безопасно привязывает обработчик события к элементу.
+     * Выводит предупреждение, если элемент не найден.
+     * 
+     * @param {string} elementId ID элемента DOM
+     * @param {string} eventType Тип события (например, 'click', 'keypress')
+     * @param {Function} handler Функция-обработчик события
+     * @return {void}
+     */
     bindElementEvent(elementId, eventType, handler) {
         const element = document.getElementById(elementId);
         if (element) {
@@ -111,6 +225,14 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Загрузка данных из localStorage
+     * 
+     * @details Восстанавливает сохраненное имя пользователя из localStorage
+     * и заполняет соответствующее поле ввода.
+     * 
+     * @return {void}
+     */
     loadFromStorage() {
         try {
             const username = localStorage.getItem('chatters_username') || '';
@@ -126,6 +248,14 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Сохранение имени пользователя в localStorage
+     * 
+     * @details Сохраняет имя пользователя для автозаполнения при следующем посещении.
+     * 
+     * @param {string} username Имя пользователя для сохранения
+     * @return {void}
+     */
     saveToStorage(username) {
         try {
             if (username) {
@@ -136,6 +266,14 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Отображение формы подключения к комнате
+     * 
+     * @details Скрывает интерфейс чата и показывает форму ввода
+     * данных для подключения к комнате.
+     * 
+     * @return {void}
+     */
     showConnectionForm() {
         try {
             const connectionForm = document.getElementById('connectionForm');
@@ -148,6 +286,13 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Отображение модального окна создания комнаты
+     * 
+     * @details Делегирует отображение модального окна виджету CreateRoomWidget.
+     * 
+     * @return {void}
+     */
     showCreateRoomModal() {
         try {
             if (this.widgets.createRoom) {
@@ -160,6 +305,19 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Подключение к комнате чата
+     * 
+     * @details Выполняет полный цикл подключения к комнате:
+     * 1. Проверяет, не выполняется ли уже подключение
+     * 2. Валидирует введенные данные (ID комнаты, имя пользователя)
+     * 3. Проверяет существование комнаты через API
+     * 4. Валидирует пароль, если комната защищена
+     * 5. Инициирует WebSocket-подключение через ChatWidget
+     * 
+     * @return {Promise<void>} Промис, разрешающийся после подключения
+     * @throws {Error} Выбрасывает ошибку при неудачной валидации или подключении
+     */
     async joinRoom() {
         if (this.isJoining) {
             console.log('Join attempt ignored: already joining');
@@ -221,11 +379,30 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Получение значения элемента формы
+     * 
+     * @details Безопасно извлекает и обрезает значение из элемента ввода.
+     * 
+     * @param {string} elementId ID элемента формы
+     * @return {string} Обрезанное значение элемента или пустая строка
+     */
     getElementValue(elementId) {
         const element = document.getElementById(elementId);
         return element ? element.value.trim() : '';
     }
 
+    /**
+     * @brief Валидация пароля комнаты
+     * 
+     * @details Отправляет POST-запрос к API для проверки правильности
+     * пароля комнаты перед подключением.
+     * 
+     * @param {number} roomId ID комнаты
+     * @param {string} password Пароль для проверки
+     * @return {Promise<void>} Промис, разрешающийся при успешной валидации
+     * @throws {Error} Выбрасывает ошибку при неверном пароле
+     */
     async validatePassword(roomId, password) {
         try {
             const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${roomId}/validate-password`, {
@@ -233,21 +410,26 @@ class ChatApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password })
             });
-
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.error || 'Password validation failed');
-            }
-
-            const result = await response.json();
-            if (!result.valid) {
-                throw new Error('Invalid password');
             }
         } catch (error) {
             throw new Error('Invalid room password');
         }
     }
 
+    /**
+     * @brief Валидация существования комнаты
+     * 
+     * @details Проверяет существование комнаты через API и получает
+     * информацию о ней (наличие пароля). Управляет видимостью поля
+     * ввода пароля в зависимости от настроек комнаты.
+     * 
+     * @param {number} roomId ID комнаты для проверки
+     * @return {Promise<Object>} Промис с информацией о комнате
+     * @throws {Error} Выбрасывает ошибку, если комната не существует
+     */
     async validateRoom(roomId) {
         try {
             const response = await fetch(`${window.ChattersApp.config.API_BASE_URL}/rooms/${roomId}`);
@@ -255,7 +437,6 @@ class ChatApp {
                 const error = await response.json();
                 throw new Error(error.error || 'Room not found');
             }
-
             const roomInfo = await response.json();
             this.currentRoomInfo = roomInfo;
 
@@ -278,6 +459,17 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Отображение уведомления пользователю
+     * 
+     * @details Делегирует отображение уведомления глобальной системе
+     * уведомлений. Fallback на console.log при отсутствии системы.
+     * 
+     * @param {string} title Заголовок уведомления
+     * @param {string} message Текст уведомления
+     * @param {string} type Тип уведомления ('info', 'success', 'error', 'warning')
+     * @return {void}
+     */
     showNotification(title, message, type = 'info') {
         try {
             if (window.notificationSystem) {
@@ -290,16 +482,41 @@ class ChatApp {
         }
     }
 
+    /**
+     * @brief Получение виджета по имени
+     * 
+     * @details Предоставляет доступ к зарегистрированным виджетам.
+     * 
+     * @param {string} widgetName Имя виджета ('chat', 'createRoom')
+     * @return {Object|undefined} Экземпляр виджета или undefined
+     */
     getWidget(widgetName) {
         return this.widgets[widgetName];
     }
 
+    /**
+     * @brief Проверка готовности приложения
+     * 
+     * @details Возвращает статус инициализации приложения.
+     * 
+     * @return {boolean} true, если приложение полностью инициализировано
+     */
     isReady() {
         return this.isInitialized;
     }
 }
 
-// Utility function to debounce events
+/**
+ * @brief Утилита для debounce функций
+ * 
+ * @details Ограничивает частоту вызова функции, откладывая её выполнение
+ * до момента, когда прекратятся повторные вызовы в течение указанного времени.
+ * Используется для предотвращения множественных подключений к комнате.
+ * 
+ * @param {Function} func Функция для debounce
+ * @param {number} wait Время задержки в миллисекундах
+ * @return {Function} Обернутая функция с debounce
+ */
 function debounce(func, wait) {
     let timeout;
     return function (...args) {
@@ -308,13 +525,27 @@ function debounce(func, wait) {
     };
 }
 
-// Global error handlers
+/**
+ * @brief Глобальный обработчик ошибок
+ * 
+ * @details Перехватывает необработанные ошибки JavaScript и логирует их.
+ */
 window.addEventListener('error', (event) => {
     console.error('Global error:', event.error);
 });
 
+/**
+ * @brief Глобальный обработчик отклоненных промисов
+ * 
+ * @details Перехватывает необработанные отклонения промисов и логирует их.
+ */
 window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
 });
 
+/**
+ * @brief Экспорт класса ChatApp в глобальную область видимости
+ * 
+ * @details Делает класс доступным для других модулей приложения.
+ */
 window.ChatApp = ChatApp;

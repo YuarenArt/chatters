@@ -1,4 +1,30 @@
-// Application configuration
+/**
+ * @file main.js
+ * @brief Главный модуль инициализации приложения Chatters
+ * @ingroup main_module
+ * 
+ * @details Этот модуль содержит конфигурацию приложения, глобальный объект состояния
+ * и функции инициализации. Отвечает за:
+ * - Загрузку конфигурации приложения
+ * - Инициализацию глобального состояния
+ * - Привязку глобальных обработчиков событий
+ * - Управление жизненным циклом приложения
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ * 
+ * @defgroup main_module Главный модуль
+ * @brief Модуль инициализации и конфигурации приложения
+ * @details Содержит точку входа и основные настройки приложения.
+ */
+
+/**
+ * @brief Конфигурация приложения
+ * 
+ * @details Содержит все основные настройки приложения, включая URL API,
+ * параметры переподключения и ограничения на длину сообщений.
+ */
 const CONFIG = {
     API_BASE_URL: 'http://localhost:8080/api',
     WS_BASE_URL: 'ws://localhost:8080/ws',
@@ -8,6 +34,12 @@ const CONFIG = {
     MAX_USERNAME_LENGTH: 25
 };
 
+/**
+ * @brief Глобальный объект приложения Chatters
+ * 
+ * @details Содержит конфигурацию, виджеты и состояние приложения.
+ * Доступен глобально через window.ChattersApp.
+ */
 window.ChattersApp = {
     config: CONFIG,
     widgets: {},
@@ -18,6 +50,18 @@ window.ChattersApp = {
     }
 };
 
+/**
+ * @brief Асинхронная инициализация приложения
+ * 
+ * @details Выполняет следующие этапы:
+ * 1. Ожидает загрузки DOM
+ * 2. Ожидает загрузки необходимых элементов
+ * 3. Привязывает глобальные обработчики событий
+ * 4. Загружает сохраненные данные из localStorage
+ * 5. Отображает форму подключения
+ * 
+ * @return {Promise<void>} Промис, разрешающийся после инициализации
+ */
 async function initializeApp() {
     try {
         console.log('Initializing Chatters application...');
@@ -45,7 +89,13 @@ async function initializeApp() {
     }
 }
 
-// Wait for required elements to load
+/**
+ * @brief Ожидание загрузки необходимых элементов DOM
+ * 
+ * @details Последовательно ожидает появления всех критически важных элементов.
+ * 
+ * @return {Promise<void>} Промис, разрешающийся после загрузки всех элементов
+ */
 async function waitForElements() {
     const requiredElements = [
         'connectionForm',
@@ -59,7 +109,15 @@ async function waitForElements() {
     }
 }
 
-// Wait for element to appear
+/**
+ * @brief Ожидание появления элемента в DOM
+ * 
+ * @details Использует MutationObserver для отслеживания появления элемента.
+ * 
+ * @param {string} elementId ID элемента для ожидания
+ * @param {number} timeout Максимальное время ожидания в миллисекундах
+ * @return {Promise<HTMLElement>} Промис с найденным элементом
+ */
 function waitForElement(elementId, timeout = 5000) {
     return new Promise((resolve, reject) => {
         const element = document.getElementById(elementId);
@@ -88,7 +146,17 @@ function waitForElement(elementId, timeout = 5000) {
     });
 }
 
-// Bind global events
+/**
+ * @brief Привязка глобальных обработчиков событий
+ * 
+ * @details Устанавливает обработчики для глобальных событий:
+ * - Ошибки JavaScript
+ * - Необработанные отклонения промисов
+ * - Закрытие страницы
+ * - Изменение видимости страницы
+ * 
+ * @return {void}
+ */
 function bindGlobalEvents() {
 
     window.addEventListener('error', handleGlobalError);
@@ -99,26 +167,53 @@ function bindGlobalEvents() {
     console.log('Global events bound');
 }
 
-// Handle global errors
+/**
+ * @brief Обработчик глобальных ошибок JavaScript
+ * 
+ * @details Логирует ошибки и отображает уведомление пользователю.
+ * 
+ * @param {ErrorEvent} event Событие ошибки
+ * @return {void}
+ */
 function handleGlobalError(event) {
     console.error('Global error:', event.error);
     showGlobalError('System Error', 'An unexpected error occurred');
 }
 
-// Handle unhandled promise rejections
+/**
+ * @brief Обработчик необработанных отклонений промисов
+ * 
+ * @details Логирует отклонения промисов и отображает уведомление.
+ * 
+ * @param {PromiseRejectionEvent} event Событие отклонения промиса
+ * @return {void}
+ */
 function handleUnhandledRejection(event) {
     console.error('Unhandled promise rejection:', event.reason);
     showGlobalError('Operation Error', 'Operation failed with error');
 }
 
-// Handle page close
+/**
+ * @brief Обработчик закрытия страницы
+ * 
+ * @details Корректно закрывает WebSocket-соединение при закрытии страницы.
+ * 
+ * @param {BeforeUnloadEvent} event Событие закрытия страницы
+ * @return {void}
+ */
 function handleBeforeUnload(event) {
     if (window.ChattersApp.widgets.chat?.isConnected) {
         window.ChattersApp.widgets.chat.disconnect();
     }
 }
 
-// Handle page visibility change
+/**
+ * @brief Обработчик изменения видимости страницы
+ * 
+ * @details Реагирует на переключение вкладок браузера.
+ * 
+ * @return {void}
+ */
 function handleVisibilityChange() {
     if (document.hidden) {
         //console.log('Page hidden');
@@ -127,7 +222,13 @@ function handleVisibilityChange() {
     }
 }
 
-// Load data from storage
+/**
+ * @brief Загрузка данных из localStorage
+ * 
+ * @details Восстанавливает сохраненное имя пользователя из localStorage.
+ * 
+ * @return {void}
+ */
 function loadStoredData() {
     try {
         const username = localStorage.getItem('chatters_username');
@@ -144,7 +245,13 @@ function loadStoredData() {
     }
 }
 
-// Show connection form
+/**
+ * @brief Отображение формы подключения к комнате
+ * 
+ * @details Скрывает интерфейс чата и показывает форму подключения.
+ * 
+ * @return {void}
+ */
 function showConnectionForm() {
     const connectionForm = document.getElementById('connectionForm');
     const chatRoom = document.getElementById('chatRoom');
@@ -153,7 +260,15 @@ function showConnectionForm() {
     if (chatRoom) chatRoom.classList.add('hidden');
 }
 
-// Show global error using notification system
+/**
+ * @brief Отображение глобальной ошибки
+ * 
+ * @details Использует систему уведомлений для отображения ошибки.
+ * 
+ * @param {string} title Заголовок ошибки
+ * @param {string} message Текст ошибки
+ * @return {void}
+ */
 function showGlobalError(title, message) {
     if (window.notificationSystem) {
         window.notificationSystem.error(title, message);
@@ -162,19 +277,33 @@ function showGlobalError(title, message) {
     }
 }
 
-// Check if application is ready
+/**
+ * @brief Проверка готовности приложения
+ * 
+ * @details Возвращает статус инициализации приложения.
+ * 
+ * @return {boolean} true, если приложение инициализировано
+ */
 function isAppReady() {
     return window.ChattersApp.state.isInitialized;
 }
 
-// Export utility functions to global scope
+/**
+ * @brief Экспорт утилит в глобальную область видимости
+ * 
+ * @details Делает утилиты доступными для других модулей через window.ChattersApp.utils.
+ */
 window.ChattersApp.utils = {
     isAppReady,
     showConnectionForm,
     showGlobalError
 };
 
-// Start initialization
+/**
+ * @brief Запуск инициализации приложения
+ * 
+ * @details Инициализирует приложение после загрузки DOM или немедленно, если DOM уже загружен.
+ */
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {

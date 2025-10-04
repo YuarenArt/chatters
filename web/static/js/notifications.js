@@ -1,11 +1,51 @@
-// Notification system
+/**
+ * @file notifications.js
+ * @brief Модуль уведомлений Chatters
+ * @ingroup notifications_module
+ * 
+ * @details Этот модуль содержит класс NotificationSystem, который управляет
+ * отображением системных уведомлений в пользовательском интерфейсе.
+ * Основные возможности:
+ * - Отображение информационных, предупреждающих и ошибочных уведомлений
+ * - Автоматическое скрытие уведомлений по таймауту
+ * - Управление очередью уведомлений
+ * - Поддержка различных типов уведомлений (success, info, warning, error)
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ * 
+ * @defgroup notifications_module Модуль уведомлений
+ * @brief Система отображения уведомлений
+ * @details Содержит классы и функции для вывода пользовательских
+ * уведомлений в интерфейсе приложения.
+ */
+
+/**
+ * @class NotificationSystem
+ * @brief Система управления уведомлениями
+ * 
+ * @details Управляет отображением и скрытием уведомлений в UI.
+ */
 class NotificationSystem {
+    /**
+     * @brief Конструктор класса NotificationSystem
+     * 
+     * @details Инициализирует контейнер уведомлений и массив активных уведомлений.
+     */
     constructor() {
         this.container = null;
         this.notifications = [];
         this.init();
     }
 
+    /**
+     * @brief Инициализация системы уведомлений
+     * 
+     * @details Находит контейнер для уведомлений в DOM.
+     * 
+     * @return {void}
+     */
     init() {
         try {
             this.container = document.getElementById('notifications');
@@ -18,6 +58,17 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Отображение уведомления
+     * 
+     * @details Создает и показывает уведомление с автоматическим скрытием.
+     * 
+     * @param {string} title Заголовок уведомления
+     * @param {string} message Текст сообщения
+     * @param {string} type Тип уведомления ('info', 'success', 'warning', 'error')
+     * @param {number} duration Длительность отображения в миллисекундах
+     * @return {void}
+     */
     show(title, message, type = 'info', duration = 5000) {
         try {
             if (!this.container) {
@@ -47,6 +98,16 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Создание DOM-элемента уведомления
+     * 
+     * @details Создает HTML-элемент уведомления с иконкой и кнопкой закрытия.
+     * 
+     * @param {string} title Заголовок
+     * @param {string} message Сообщение
+     * @param {string} type Тип уведомления
+     * @return {HTMLElement} DOM-элемент уведомления
+     */
     createNotification(title, message, type) {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
@@ -73,6 +134,15 @@ class NotificationSystem {
         return notification;
     }
 
+    /**
+     * @brief Скрытие уведомления
+     * 
+     * @details Скрывает уведомление с анимацией или без.
+     * 
+     * @param {HTMLElement} notification Элемент уведомления
+     * @param {boolean} animate Использовать анимацию
+     * @return {void}
+     */
     hide(notification, animate = true) {
         try {
             if (!notification || !notification.parentNode) return;
@@ -96,6 +166,14 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Удаление уведомления из списка
+     * 
+     * @details Удаляет уведомление из массива отслеживания.
+     * 
+     * @param {HTMLElement} notification Элемент уведомления
+     * @return {void}
+     */
     removeFromList(notification) {
         const index = this.notifications.indexOf(notification);
         if (index > -1) {
@@ -103,6 +181,13 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Скрытие всех уведомлений
+     * 
+     * @details Скрывает все активные уведомления без анимации.
+     * 
+     * @return {void}
+     */
     hideAll() {
         try {
             this.notifications.forEach(notification => {
@@ -114,6 +199,14 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Получение иконки для типа уведомления
+     * 
+     * @details Возвращает класс FontAwesome иконки в зависимости от типа.
+     * 
+     * @param {string} type Тип уведомления
+     * @return {string} Класс CSS иконки
+     */
     getNotificationIcon(type) {
         switch (type) {
             case 'success':
@@ -128,6 +221,14 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Экранирование HTML
+     * 
+     * @details Безопасно экранирует HTML-символы в тексте.
+     * 
+     * @param {string} text Текст для экранирования
+     * @return {string} Экранированный текст
+     */
     escapeHtml(text) {
         try {
             const div = document.createElement('div');
@@ -139,18 +240,50 @@ class NotificationSystem {
         }
     }
 
+    /**
+     * @brief Показать уведомление об успехе
+     * 
+     * @param {string} title Заголовок
+     * @param {string} message Сообщение
+     * @param {number} duration Длительность
+     * @return {void}
+     */
     success(title, message, duration) {
         this.show(title, message, 'success', duration);
     }
 
+    /**
+     * @brief Показать уведомление об ошибке
+     * 
+     * @param {string} title Заголовок
+     * @param {string} message Сообщение
+     * @param {number} duration Длительность
+     * @return {void}
+     */
     error(title, message, duration) {
         this.show(title, message, 'error', duration);
     }
 
+    /**
+     * @brief Показать предупреждение
+     * 
+     * @param {string} title Заголовок
+     * @param {string} message Сообщение
+     * @param {number} duration Длительность
+     * @return {void}
+     */
     warning(title, message, duration) {
         this.show(title, message, 'warning', duration);
     }
 
+    /**
+     * @brief Показать информационное уведомление
+     * 
+     * @param {string} title Заголовок
+     * @param {string} message Сообщение
+     * @param {number} duration Длительность
+     * @return {void}
+     */
     info(title, message, duration) {
         this.show(title, message, 'info', duration);
     }

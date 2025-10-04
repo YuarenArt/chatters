@@ -1,6 +1,45 @@
-// fileTransferManager.js
-// FileTransferManager with WebRTC-based file transfer functionality
+/**
+ * @file fileTransferManager.js
+ * @brief Модуль передачи файлов Chatters
+ * @ingroup filetransfer_module
+ * 
+ * @details Этот модуль содержит класс FileTransferManager, который реализует
+ * P2P передачу файлов между пользователями чата с использованием WebRTC.
+ * Основные возможности:
+ * - Анонсирование доступных для скачивания файлов
+ * - Установка P2P соединений через WebRTC
+ * - Передача файлов по частям (chunks)
+ * - Отслеживание прогресса передачи
+ * - Обработка ICE candidates для NAT traversal
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ * 
+ * @defgroup filetransfer_module Модуль передачи файлов
+ * @brief P2P передача файлов между пользователями
+ * @details Содержит классы и функции для установки P2P соединений
+ * и передачи файлов через WebRTC DataChannel.
+ */
 
+/**
+ * @class FileTransferManager
+ * @brief Менеджер P2P передачи файлов через WebRTC
+ * 
+ * @details FileTransferManager управляет всем жизненным циклом передачи файлов:
+ * - Анонсирование доступных файлов
+ * - Обработка запросов на скачивание
+ * - Установка WebRTC соединений (offer/answer)
+ * - Передача данных через DataChannel
+ * - Обработка ICE candidates
+ * - Отслеживание прогресса
+ * 
+ * Архитектура:
+ * - Владелец файла (owner) создает offer и отправляет файл
+ * - Запрашивающий (requester) создает answer и получает файл
+ * - Сигнализация происходит через WebSocket сервер
+ * - Данные передаются напрямую через DataChannel
+ */
 class FileTransferManager {
     constructor(ws, username, uiHandlers) {
         this.ws = ws;

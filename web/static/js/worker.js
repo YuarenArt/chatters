@@ -1,11 +1,49 @@
-// worker.js
-// Worker: assemble ArrayBuffer chunks into single ArrayBuffer and notify main thread.
-// No WebRTC API here.
+/**
+ * @file worker.js
+ * @brief Web Worker для обработки передачи файлов
+ * @ingroup filetransfer_module
+ * 
+ * @details Этот Web Worker отвечает за сборку ArrayBuffer чанков в единый файл
+ * без блокировки основного потока UI. Основные функции:
+ * - Инициализация метаданных файла
+ * - Сборка чанков данных
+ * - Финализация и передача готового файла обратно в основной поток
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ */
 
+/**
+ * @var chunks
+ * @brief Массив ArrayBuffer чанков файла
+ */
 let chunks = [];
+
+/**
+ * @var totalBytes
+ * @brief Общий размер полученных данных в байтах
+ */
 let totalBytes = 0;
+
+/**
+ * @var meta
+ * @brief Метаданные передаваемого файла
+ * @details Содержит имя файла, размер и MIME-тип
+ */
 let meta = { filename: null, filesize: null, mime: null };
 
+/**
+ * @brief Обработчик сообщений от основного потока
+ * 
+ * @details Обрабатывает команды:
+ * - init: Инициализация метаданных файла
+ * - chunk: Добавление чанка данных
+ * - finish: Сборка и отправка готового файла
+ * - reset: Сброс состояния
+ * 
+ * @param {MessageEvent} ev Событие сообщения от основного потока
+ */
 self.onmessage = (ev) => {
     const msg = ev.data;
     switch (msg.type) {

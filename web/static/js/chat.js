@@ -1,23 +1,129 @@
-// chat.js
-// English comments in code per user requirement.
+/**
+ * @file chat.js
+ * @brief Модуль виджета чата Chatters
+ * @ingroup chat_module
+ * 
+ * @details Этот модуль содержит класс ChatWidget, который управляет всей
+ * функциональностью чата в реальном времени через WebSocket-соединение.
+ * Включает обработку сообщений, управление пользователями, передачу файлов
+ * через WebRTC, а также функции управления комнатой для хостов.
+ * 
+ * Основные возможности:
+ * - Установка и поддержка WebSocket-соединения с автоматическим переподключением
+ * - Отправка и получение текстовых сообщений в реальном времени
+ * - P2P передача файлов через WebRTC DataChannel
+ * - Управление комнатой для хостов (смена пароля, кик пользователей, удаление комнаты)
+ * - Отображение онлайн-счетчика пользователей
+ * - Обработка системных событий (вход/выход пользователей)
+ * 
+ * @author Chatters Development Team
+ * @version 1.0
+ * @date 2025
+ * 
+ * @defgroup chat_module Модуль чата
+ * @brief Виджет чата в реальном времени
+ * @details Содержит класс ChatWidget для управления WebSocket-соединением,
+ * обработки сообщений и передачи файлов через WebRTC.
+ */
 
-// FileTransferManager has been moved to fileTransferManager.js
-
-// ChatWidget with improved progress bar handling
+/**
+ * @class ChatWidget
+ * @brief Виджет для управления чатом в реальном времени
+ * 
+ * @details ChatWidget является основным компонентом для работы с чатом.
+ * Он управляет:
+ * - WebSocket-соединением с сервером
+ * - Отправкой и получением сообщений
+ * - Передачей файлов через WebRTC
+ * - UI элементами чата (сообщения, кнопки, формы)
+ * - Переподключением при разрыве соединения
+ * - Функциями управления комнатой для хостов
+ * 
+ * Класс использует FileTransferManager для P2P передачи файлов и
+ * Web Worker для обработки больших файлов без блокировки UI.
+ */
 class ChatWidget {
+    /**
+     * @brief Конструктор класса ChatWidget
+     * 
+     * @details Инициализирует все свойства виджета чата и запускает
+     * процесс привязки событий к элементам DOM.
+     */
     constructor() {
+        /**
+         * @var ws
+         * @brief WebSocket-соединение с сервером
+         * @details Объект WebSocket для двусторонней связи с сервером чата
+         */
         this.ws = null;
+        
+        /**
+         * @var currentRoom
+         * @brief ID текущей комнаты
+         * @details Числовой идентификатор комнаты, к которой подключен пользователь
+         */
         this.currentRoom = null;
+        
+        /**
+         * @var username
+         * @brief Имя текущего пользователя
+         * @details Имя пользователя, используемое в чате
+         */
         this.username = '';
+        
+        /**
+         * @var isConnected
+         * @brief Флаг активного соединения
+         * @details true, если WebSocket-соединение установлено и активно
+         */
         this.isConnected = false;
+        
+        /**
+         * @var reconnectAttempts
+         * @brief Счетчик попыток переподключения
+         * @details Отслеживает количество неудачных попыток переподключения
+         */
         this.reconnectAttempts = 0;
+        
+        /**
+         * @var maxReconnectAttempts
+         * @brief Максимальное количество попыток переподключения
+         * @details После превышения лимита переподключение прекращается
+         */
         this.maxReconnectAttempts = window.ChattersApp?.config?.RECONNECT_ATTEMPTS || 5;
+        
+        /**
+         * @var reconnectDelayBase
+         * @brief Базовая задержка между попытками переподключения (мс)
+         * @details Используется для экспоненциального увеличения задержки
+         */
         this.reconnectDelayBase = window.ChattersApp?.config?.RECONNECT_DELAY || 1000;
+        
+        /**
+         * @var fileManager
+         * @brief Менеджер передачи файлов
+         * @details Экземпляр FileTransferManager для P2P передачи файлов
+         */
         this.fileManager = null;
+        
+        /**
+         * @var transferWorker
+         * @brief Web Worker для обработки файлов
+         * @details Worker для сборки файлов из чанков без блокировки UI
+         */
         this.transferWorker = null;
+        
         this.init();
     }
 
+    /**
+     * @brief Инициализация виджета чата
+     * 
+     * @details Запускает процесс привязки обработчиков событий к элементам DOM.
+     * Обрабатывает ошибки инициализации и отображает уведомления.
+     * 
+     * @return {void}
+     */
     init() {
         try {
             this.bindEvents();
@@ -27,6 +133,14 @@ class ChatWidget {
         }
     }
 
+    /**
+     * @brief Привязка обработчиков событий
+     * 
+     * @details Ожидает загрузки необходимых элементов DOM, затем
+     * привязывает к ним обработчики событий.
+     * 
+     * @return {void}
+     */
     bindEvents() {
         this.waitForElements().then(() => {
             this.attachEventListeners();
@@ -36,6 +150,14 @@ class ChatWidget {
         });
     }
 
+    /**
+     * @brief Ожидание загрузки основных элементов DOM
+     * 
+     * @details Последовательно ожидает появления всех критически важных
+     * элементов интерфейса чата в DOM.
+     * 
+     * @return {Promise<void>} Промис, разрешающийся после загрузки всех элементов
+     */
     async waitForElements() {
         const coreElements = ['leaveBtn', 'sendBtn', 'messageInput', 'chatMessages', 'currentRoomId', 'onlineCount', 'uploadFileBtn', 'fileInput'];
         for (const id of coreElements) {
@@ -43,6 +165,17 @@ class ChatWidget {
         }
     }
 
+    /**
+     * @brief Ожидание появления элемента в DOM
+     * 
+     * @details Использует MutationObserver для отслеживания появления
+     * элемента с заданным ID. Отклоняет промис при превышении таймаута.
+     * 
+     * @param {string} id ID элемента для ожидания
+     * @param {number} timeout Максимальное время ожидания в миллисекундах (по умолчанию 6000)
+     * @return {Promise<HTMLElement>} Промис с найденным элементом
+     * @throws {Error} Выбрасывает ошибку при превышении таймаута
+     */
     waitForElement(id, timeout = 6000) {
         return new Promise((resolve, reject) => {
             const el = document.getElementById(id);
@@ -60,6 +193,18 @@ class ChatWidget {
         });
     }
 
+    /**
+     * @brief Привязка обработчиков событий к элементам
+     * 
+     * @details Устанавливает обработчики для:
+     * - Кнопки выхода из комнаты
+     * - Кнопки отправки сообщения
+     * - Поля ввода сообщения (Enter для отправки)
+     * - Кнопки загрузки файла
+     * Управляет состоянием кнопок в зависимости от статуса подключения.
+     * 
+     * @return {void}
+     */
     attachEventListeners() {
         try {
             const leaveBtn = document.getElementById('leaveBtn');
@@ -94,6 +239,22 @@ class ChatWidget {
         }
     }
 
+    /**
+     * @brief Подключение к комнате чата
+     * 
+     * @details Выполняет полный цикл подключения к комнате:
+     * 1. Отключается от текущей комнаты (если подключена)
+     * 2. Сохраняет параметры подключения
+     * 3. Устанавливает WebSocket-соединение
+     * 4. Инициализирует FileTransferManager для передачи файлов
+     * 
+     * @param {number} roomId ID комнаты для подключения
+     * @param {string} username Имя пользователя
+     * @param {string} password Пароль комнаты (опционально)
+     * @param {string} hostToken Токен хоста для управления комнатой (опционально)
+     * @return {Promise<void>} Промис, разрешающийся после подключения
+     * @throws {Error} Выбрасывает ошибку при неудачном подключении
+     */
     async joinRoom(roomId, username, password = '', hostToken = '') {
         try {
             if (!roomId || !username) throw new Error('Room ID or username not specified');
@@ -108,6 +269,21 @@ class ChatWidget {
         }
     }
 
+    /**
+     * @brief Установка WebSocket-соединения
+     * 
+     * @details Создает WebSocket-соединение с сервером и устанавливает
+     * обработчики для всех событий соединения (open, message, close, error).
+     * Инициализирует Web Worker и FileTransferManager после подключения.
+     * Проверяет поддержку WebRTC перед установкой соединения.
+     * 
+     * @param {number} roomId ID комнаты
+     * @param {string} username Имя пользователя
+     * @param {string} password Пароль комнаты (опционально)
+     * @param {string} hostToken Токен хоста (опционально)
+     * @return {Promise<void>} Промис, разрешающийся после установки соединения
+     * @throws {Error} Выбрасывает ошибку, если WebRTC не поддерживается
+     */
     async connectWebSocket(roomId, username, password = '', hostToken = '') {
         if (typeof RTCPeerConnection === 'undefined') {
             throw new Error('WebRTC not supported');
@@ -578,4 +754,9 @@ class ChatWidget {
     }
 }
 
+/**
+ * @brief Экспорт класса ChatWidget в глобальную область видимости
+ * 
+ * @details Делает класс доступным для других модулей приложения.
+ */
 window.ChatWidget = ChatWidget;
