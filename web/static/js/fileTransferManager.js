@@ -41,26 +41,97 @@
  * - Данные передаются напрямую через DataChannel
  */
 class FileTransferManager {
+    /**
+     * @brief Конструктор класса FileTransferManager
+     * 
+     * @details Инициализирует менеджер передачи файлов с необходимыми настройками.
+     * Устанавливает STUN сервера Google для NAT traversal.
+     * 
+     * @param {WebSocket} ws - WebSocket-соединение для сигнализации
+     * @param {string} username - Имя текущего пользователя
+     * @param {Object} uiHandlers - Объект с callback-функциями для UI
+     * @param {Function} [uiHandlers.addFileMessage] - Callback для добавления сообщения о файле
+     * @param {Function} [uiHandlers.onTransferProgress] - Callback для обновления прогресса
+     * @param {Function} [uiHandlers.showNotification] - Callback для отображения уведомлений
+     */
     constructor(ws, username, uiHandlers) {
+        /**
+         * @property {WebSocket} ws
+         * @brief WebSocket-соединение для сигнализации
+         */
         this.ws = ws;
+        
+        /**
+         * @property {string} username
+         * @brief Имя текущего пользователя
+         */
         this.username = username;
+        
+        /**
+         * @property {Object} ui
+         * @brief UI callback-функции
+         */
         this.ui = uiHandlers || {};
+        
+        /**
+         * @property {Map} availableFiles
+         * @brief Карта доступных файлов (transferId -> metadata)
+         */
         this.availableFiles = new Map();
+        
+        /**
+         * @property {Map} transfers
+         * @brief Карта активных передач (transferId -> transfer data)
+         */
         this.transfers = new Map();
+        
+        /**
+         * @property {Map} peerConns
+         * @brief Карта P2P соединений (key -> {pc, dc, role, meta})
+         */
         this.peerConns = new Map();
+        
+        /**
+         * @property {Object} iceConfig
+         * @brief Конфигурация ICE серверов для WebRTC
+         */
         this.iceConfig = {
             iceServers: [
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
             ]
         };
+        
+        /**
+         * @property {number} chunkSize
+         * @brief Размер чанка для передачи файла (128 KB)
+         */
         this.chunkSize = 128 * 1024;
     }
 
+    /**
+     * @brief Генерация уникального ID для передачи
+     * 
+     * @details Создает случайную строку с префиксом 't_' для идентификации передачи.
+     * 
+     * @returns {string} Уникальный идентификатор передачи
+     */
     generateId() {
         return 't_' + Math.random().toString(36).slice(2, 12);
     }
 
+    /**
+     * @brief Анонсирование файла для скачивания
+     * 
+     * @details Создает метаданные файла, сохраняет его и отправляет уведомление
+     * всем пользователям в комнате о доступности файла.
+     * 
+     * @param {File} file - Объект File для передачи
+     * @returns {string} ID передачи
+     * 
+     * @see generateId
+     * @see sendSignaling
+     */
     announceFile(file) {
         const transferId = this.generateId();
         const meta = {
@@ -77,6 +148,15 @@ class FileTransferManager {
         return transferId;
     }
 
+    /**
+     * @brief Запрос на скачивание файла
+     * 
+     * @details Отправляет запрос владельцу файла на установление P2P соединения.
+     * 
+     * @param {string} transferId - ID передачи
+     * @param {string} owner - Имя владельца файла
+     * @returns {void}
+     */
     requestFile(transferId, owner) {
         const payload = { transferId, owner, from: this.username };
         this.sendSignaling('request-file', payload);

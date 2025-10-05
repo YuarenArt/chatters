@@ -48,66 +48,68 @@ class ChatWidget {
      * 
      * @details Инициализирует все свойства виджета чата и запускает
      * процесс привязки событий к элементам DOM.
+     * 
+     * @note Конструктор автоматически вызывает метод init() для запуска инициализации
      */
     constructor() {
         /**
-         * @var ws
+         * @property {WebSocket|null} ws
          * @brief WebSocket-соединение с сервером
          * @details Объект WebSocket для двусторонней связи с сервером чата
          */
         this.ws = null;
         
         /**
-         * @var currentRoom
+         * @property {number|null} currentRoom
          * @brief ID текущей комнаты
          * @details Числовой идентификатор комнаты, к которой подключен пользователь
          */
         this.currentRoom = null;
         
         /**
-         * @var username
+         * @property {string} username
          * @brief Имя текущего пользователя
          * @details Имя пользователя, используемое в чате
          */
         this.username = '';
         
         /**
-         * @var isConnected
+         * @property {boolean} isConnected
          * @brief Флаг активного соединения
          * @details true, если WebSocket-соединение установлено и активно
          */
         this.isConnected = false;
         
         /**
-         * @var reconnectAttempts
+         * @property {number} reconnectAttempts
          * @brief Счетчик попыток переподключения
          * @details Отслеживает количество неудачных попыток переподключения
          */
         this.reconnectAttempts = 0;
         
         /**
-         * @var maxReconnectAttempts
+         * @property {number} maxReconnectAttempts
          * @brief Максимальное количество попыток переподключения
          * @details После превышения лимита переподключение прекращается
          */
         this.maxReconnectAttempts = window.ChattersApp?.config?.RECONNECT_ATTEMPTS || 5;
         
         /**
-         * @var reconnectDelayBase
+         * @property {number} reconnectDelayBase
          * @brief Базовая задержка между попытками переподключения (мс)
          * @details Используется для экспоненциального увеличения задержки
          */
         this.reconnectDelayBase = window.ChattersApp?.config?.RECONNECT_DELAY || 1000;
         
         /**
-         * @var fileManager
+         * @property {FileTransferManager|null} fileManager
          * @brief Менеджер передачи файлов
          * @details Экземпляр FileTransferManager для P2P передачи файлов
          */
         this.fileManager = null;
         
         /**
-         * @var transferWorker
+         * @property {Worker|null} transferWorker
          * @brief Web Worker для обработки файлов
          * @details Worker для сборки файлов из чанков без блокировки UI
          */
@@ -171,10 +173,13 @@ class ChatWidget {
      * @details Использует MutationObserver для отслеживания появления
      * элемента с заданным ID. Отклоняет промис при превышении таймаута.
      * 
-     * @param {string} id ID элемента для ожидания
-     * @param {number} timeout Максимальное время ожидания в миллисекундах (по умолчанию 6000)
-     * @return {Promise<HTMLElement>} Промис с найденным элементом
+     * @param {string} id - ID элемента для ожидания
+     * @param {number} [timeout=6000] - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<HTMLElement>} Промис с найденным элементом
      * @throws {Error} Выбрасывает ошибку при превышении таймаута
+     * 
+     * @example
+     * await this.waitForElement('chatMessages', 5000);
      */
     waitForElement(id, timeout = 6000) {
         return new Promise((resolve, reject) => {

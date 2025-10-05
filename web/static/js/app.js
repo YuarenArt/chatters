@@ -40,24 +40,26 @@ class ChatApp {
      * @details Инициализирует основные свойства приложения и запускает
      * процесс инициализации. Конструктор создает пустой объект виджетов
      * и устанавливает флаги состояния.
+     * 
+     * @note Конструктор автоматически вызывает метод init() для запуска инициализации
      */
     constructor() {
         /**
-         * @var isInitialized
+         * @property {boolean} isInitialized
          * @brief Флаг успешной инициализации приложения
          * @details Устанавливается в true после завершения всех этапов инициализации
          */
         this.isInitialized = false;
         
         /**
-         * @var widgets
+         * @property {Object} widgets
          * @brief Объект, содержащий все виджеты приложения
          * @details Хранит экземпляры ChatWidget и CreateRoomWidget для доступа из других модулей
          */
         this.widgets = {};
         
         /**
-         * @var isJoining
+         * @property {boolean} isJoining
          * @brief Флаг процесса подключения к комнате
          * @details Предотвращает множественные одновременные попытки подключения
          */
@@ -149,9 +151,12 @@ class ChatApp {
      * CreateRoomWidget и ChatWidget в глобальной области видимости.
      * Использует polling с интервалом 100мс.
      * 
-     * @param {number} timeout Максимальное время ожидания в миллисекундах (по умолчанию 10000)
-     * @return {Promise<void>} Промис, разрешающийся при загрузке виджетов
+     * @param {number} [timeout=10000] - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<void>} Промис, разрешающийся при загрузке виджетов
      * @throws {Error} Выбрасывает ошибку при превышении таймаута
+     * 
+     * @see CreateRoomWidget
+     * @see ChatWidget
      */
     async waitForWidgets(timeout = 10000) {
         return new Promise((resolve, reject) => {
@@ -211,10 +216,13 @@ class ChatApp {
      * @details Безопасно привязывает обработчик события к элементу.
      * Выводит предупреждение, если элемент не найден.
      * 
-     * @param {string} elementId ID элемента DOM
-     * @param {string} eventType Тип события (например, 'click', 'keypress')
-     * @param {Function} handler Функция-обработчик события
-     * @return {void}
+     * @param {string} elementId - ID элемента DOM
+     * @param {string} eventType - Тип события (например, 'click', 'keypress')
+     * @param {Function} handler - Функция-обработчик события
+     * @returns {void}
+     * 
+     * @example
+     * this.bindElementEvent('joinBtn', 'click', () => this.joinRoom());
      */
     bindElementEvent(elementId, eventType, handler) {
         const element = document.getElementById(elementId);

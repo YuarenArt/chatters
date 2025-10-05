@@ -15,21 +15,26 @@
  */
 
 /**
- * @var chunks
+ * @var {Array<ArrayBuffer>} chunks
  * @brief Массив ArrayBuffer чанков файла
+ * @details Хранит части передаваемого файла до сборки
  */
 let chunks = [];
 
 /**
- * @var totalBytes
+ * @var {number} totalBytes
  * @brief Общий размер полученных данных в байтах
+ * @details Счетчик для отслеживания прогресса передачи
  */
 let totalBytes = 0;
 
 /**
- * @var meta
+ * @var {Object} meta
  * @brief Метаданные передаваемого файла
  * @details Содержит имя файла, размер и MIME-тип
+ * @property {string|null} filename - Имя файла
+ * @property {number|null} filesize - Размер файла в байтах
+ * @property {string|null} mime - MIME-тип файла
  */
 let meta = { filename: null, filesize: null, mime: null };
 
@@ -37,12 +42,17 @@ let meta = { filename: null, filesize: null, mime: null };
  * @brief Обработчик сообщений от основного потока
  * 
  * @details Обрабатывает команды:
- * - init: Инициализация метаданных файла
- * - chunk: Добавление чанка данных
- * - finish: Сборка и отправка готового файла
- * - reset: Сброс состояния
+ * - **init**: Инициализация метаданных файла (имя, размер, MIME-тип)
+ * - **chunk**: Добавление чанка данных в массив
+ * - **finish**: Сборка всех чанков и отправка готового файла
+ * - **reset**: Очистка состояния для новой передачи
  * 
- * @param {MessageEvent} ev Событие сообщения от основного потока
+ * @param {MessageEvent} ev - Событие сообщения от основного потока
+ * @param {Object} ev.data - Данные сообщения
+ * @param {string} ev.data.type - Тип команды
+ * 
+ * @note Использует Transferable Objects для эффективной передачи ArrayBuffer
+ * @see postMessage
  */
 self.onmessage = (ev) => {
     const msg = ev.data;

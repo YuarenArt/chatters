@@ -24,6 +24,13 @@
  * 
  * @details Содержит все основные настройки приложения, включая URL API,
  * параметры переподключения и ограничения на длину сообщений.
+ * 
+ * @property {string} API_BASE_URL - Базовый URL для REST API
+ * @property {string} WS_BASE_URL - Базовый URL для WebSocket соединений
+ * @property {number} RECONNECT_ATTEMPTS - Максимальное количество попыток переподключения
+ * @property {number} RECONNECT_DELAY - Задержка между попытками переподключения (мс)
+ * @property {number} MAX_MESSAGE_LENGTH - Максимальная длина сообщения в символах
+ * @property {number} MAX_USERNAME_LENGTH - Максимальная длина имени пользователя
  */
 const CONFIG = {
     API_BASE_URL: 'http://localhost:8080/api',
@@ -39,6 +46,13 @@ const CONFIG = {
  * 
  * @details Содержит конфигурацию, виджеты и состояние приложения.
  * Доступен глобально через window.ChattersApp.
+ * 
+ * @property {Object} config - Конфигурация приложения
+ * @property {Object} widgets - Контейнер для виджетов приложения
+ * @property {Object} state - Состояние приложения
+ * @property {boolean} state.isInitialized - Флаг инициализации
+ * @property {number|null} state.currentRoom - ID текущей комнаты
+ * @property {string|null} state.username - Имя пользователя
  */
 window.ChattersApp = {
     config: CONFIG,
@@ -114,9 +128,10 @@ async function waitForElements() {
  * 
  * @details Использует MutationObserver для отслеживания появления элемента.
  * 
- * @param {string} elementId ID элемента для ожидания
- * @param {number} timeout Максимальное время ожидания в миллисекундах
- * @return {Promise<HTMLElement>} Промис с найденным элементом
+ * @param {string} elementId - ID элемента для ожидания
+ * @param {number} [timeout=5000] - Максимальное время ожидания в миллисекундах
+ * @returns {Promise<HTMLElement>} Промис с найденным элементом
+ * @throws {Error} Выбрасывает ошибку при превышении таймаута
  */
 function waitForElement(elementId, timeout = 5000) {
     return new Promise((resolve, reject) => {

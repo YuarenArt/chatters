@@ -37,10 +37,22 @@ class CreateRoomWidget {
      * @brief Конструктор класса CreateRoomWidget
      * 
      * @details Инициализирует свойства виджета и запускает процесс инициализации.
+     * 
+     * @note Конструктор автоматически вызывает метод init()
      */
     constructor() {
+        /**
+         * @property {boolean} isInitialized
+         * @brief Флаг успешной инициализации
+         */
         this.isInitialized = false;
+        
+        /**
+         * @property {number|null} currentRoomId
+         * @brief ID текущей созданной комнаты
+         */
         this.currentRoomId = null;
+        
         this.init();
     }
 
@@ -104,9 +116,10 @@ class CreateRoomWidget {
      * 
      * @details Использует MutationObserver для отслеживания появления элемента с заданным ID.
      * 
-     * @param {string} elementId ID элемента для ожидания
-     * @param {number} timeout Максимальное время ожидания в миллисекундах
-     * @return {Promise<HTMLElement>} Промис с найденным элементом
+     * @param {string} elementId - ID элемента для ожидания
+     * @param {number} [timeout=3000] - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<HTMLElement>} Промис с найденным элементом
+     * @throws {Error} Выбрасывает ошибку при превышении таймаута
      */
     waitForElement(elementId, timeout = 3000) {
         return new Promise((resolve, reject) => {
@@ -287,7 +300,9 @@ class CreateRoomWidget {
      * 
      * @details Использует Clipboard API для копирования ID комнаты.
      * 
-     * @return {void}
+     * @returns {void}
+     * 
+     * @see navigator.clipboard.writeText
      */
     copyRoomId() {
         try {
@@ -313,7 +328,10 @@ class CreateRoomWidget {
      * 
      * @details Использует Clipboard API для копирования токена хоста.
      * 
-     * @return {void}
+     * @returns {void}
+     * 
+     * @note Токен хоста необходим для управления комнатой
+     * @see navigator.clipboard.writeText
      */
     copyHostToken() {
         try {

@@ -32,10 +32,22 @@ class NotificationSystem {
      * @brief Конструктор класса NotificationSystem
      * 
      * @details Инициализирует контейнер уведомлений и массив активных уведомлений.
+     * 
+     * @note Конструктор автоматически вызывает метод init()
      */
     constructor() {
+        /**
+         * @property {HTMLElement|null} container
+         * @brief Контейнер для отображения уведомлений
+         */
         this.container = null;
+        
+        /**
+         * @property {Array<HTMLElement>} notifications
+         * @brief Массив активных уведомлений
+         */
         this.notifications = [];
+        
         this.init();
     }
 
@@ -63,11 +75,14 @@ class NotificationSystem {
      * 
      * @details Создает и показывает уведомление с автоматическим скрытием.
      * 
-     * @param {string} title Заголовок уведомления
-     * @param {string} message Текст сообщения
-     * @param {string} type Тип уведомления ('info', 'success', 'warning', 'error')
-     * @param {number} duration Длительность отображения в миллисекундах
-     * @return {void}
+     * @param {string} title - Заголовок уведомления
+     * @param {string} message - Текст сообщения
+     * @param {string} [type='info'] - Тип уведомления ('info', 'success', 'warning', 'error')
+     * @param {number} [duration=5000] - Длительность отображения в миллисекундах
+     * @returns {void}
+     * 
+     * @see createNotification
+     * @see hide
      */
     show(title, message, type = 'info', duration = 5000) {
         try {
@@ -103,10 +118,13 @@ class NotificationSystem {
      * 
      * @details Создает HTML-элемент уведомления с иконкой и кнопкой закрытия.
      * 
-     * @param {string} title Заголовок
-     * @param {string} message Сообщение
-     * @param {string} type Тип уведомления
-     * @return {HTMLElement} DOM-элемент уведомления
+     * @param {string} title - Заголовок
+     * @param {string} message - Сообщение
+     * @param {string} type - Тип уведомления
+     * @returns {HTMLElement} DOM-элемент уведомления
+     * 
+     * @see getNotificationIcon
+     * @see escapeHtml
      */
     createNotification(title, message, type) {
         const notification = document.createElement('div');
@@ -139,9 +157,11 @@ class NotificationSystem {
      * 
      * @details Скрывает уведомление с анимацией или без.
      * 
-     * @param {HTMLElement} notification Элемент уведомления
-     * @param {boolean} animate Использовать анимацию
-     * @return {void}
+     * @param {HTMLElement} notification - Элемент уведомления
+     * @param {boolean} [animate=true] - Использовать анимацию
+     * @returns {void}
+     * 
+     * @see removeFromList
      */
     hide(notification, animate = true) {
         try {
@@ -204,8 +224,10 @@ class NotificationSystem {
      * 
      * @details Возвращает класс FontAwesome иконки в зависимости от типа.
      * 
-     * @param {string} type Тип уведомления
-     * @return {string} Класс CSS иконки
+     * @param {string} type - Тип уведомления
+     * @returns {string} Класс CSS иконки FontAwesome
+     * 
+     * @note Использует иконки из библиотеки FontAwesome
      */
     getNotificationIcon(type) {
         switch (type) {
@@ -224,10 +246,12 @@ class NotificationSystem {
     /**
      * @brief Экранирование HTML
      * 
-     * @details Безопасно экранирует HTML-символы в тексте.
+     * @details Безопасно экранирует HTML-символы в тексте для предотвращения XSS-атак.
      * 
-     * @param {string} text Текст для экранирования
-     * @return {string} Экранированный текст
+     * @param {string} text - Текст для экранирования
+     * @returns {string} Экранированный текст
+     * 
+     * @note Предотвращает XSS-атаки при отображении пользовательского контента
      */
     escapeHtml(text) {
         try {
