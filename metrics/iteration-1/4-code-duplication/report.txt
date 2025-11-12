@@ -1,0 +1,5 @@
+found 2 clones:
+  pkg/websocket/tests/handler_test.go:38,45
+  pkg/websocket/tests/handler_test.go:47,54
+
+Found total 1 clone groups.

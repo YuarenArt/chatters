@@ -1,0 +1,9 @@
+=== Go Vet ===
+
+=== Go Fmt Check ===
+
+=== Staticcheck ===
+internal/logging/logging.go:13:6: type keyType is unused (U1000)
+internal/logging/logging.go:21:2: const loggerKey is unused (U1000)
+internal/server/server.go:223:49: should not use built-in type string as key for value; define your own type to avoid collisions (SA1029)
+exit status 1
