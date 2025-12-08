@@ -95,14 +95,20 @@ func (r *Room) removeClient(client *Client) {
 	r.broadcastLeaveNotification(client)
 }
 
-func (r *Room) sendMessage(msg []byte) {
+// collectClients returns a snapshot of all clients
+func (r *Room) collectClients() []*Client {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	clients := make([]*Client, 0, len(r.Clients))
 	for client := range r.Clients {
 		clients = append(clients, client)
 	}
-	r.mu.RUnlock()
+	return clients
+}
 
+// sendToClients attempts to send message to clients, returns dropped clients
+func (r *Room) sendToClients(clients []*Client, msg []byte) []*Client {
 	var dropped []*Client
 	for _, client := range clients {
 		if client.isClosed() {
@@ -115,22 +121,35 @@ func (r *Room) sendMessage(msg []byte) {
 			dropped = append(dropped, client)
 		}
 	}
+	return dropped
+}
 
-	if len(dropped) > 0 {
-		r.mu.Lock()
-		for _, client := range dropped {
-			if _, ok := r.Clients[client]; ok {
-				delete(r.Clients, client)
-				client.closeOnce.Do(func() {
-					close(client.Send)
-				})
-				if r.Metrics != nil {
-					r.Metrics.DroppedMessage(strconv.Itoa(int(r.ID)), client.Username)
-				}
+// cleanupDroppedClients removes and closes dropped clients
+func (r *Room) cleanupDroppedClients(dropped []*Client) {
+	if len(dropped) == 0 {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, client := range dropped {
+		if _, ok := r.Clients[client]; ok {
+			delete(r.Clients, client)
+			client.closeOnce.Do(func() {
+				close(client.Send)
+			})
+			if r.Metrics != nil {
+				r.Metrics.DroppedMessage(strconv.Itoa(int(r.ID)), client.Username)
 			}
 		}
-		r.mu.Unlock()
 	}
+}
+
+func (r *Room) sendMessage(msg []byte) {
+	clients := r.collectClients()
+	dropped := r.sendToClients(clients, msg)
+	r.cleanupDroppedClients(dropped)
 }
 
 func (r *Room) broadcastJoinNotification(client *Client) {
@@ -221,38 +240,23 @@ func (r *Room) KickClient(username string) bool {
 	return false
 }
 
-// sendExcept sends message to all clients except the sender.
-// It copies client pointers under lock, then sends outside the lock.
-func (r *Room) sendExcept(sender *Client, msg []byte) {
+// collectClientsExcept returns a snapshot of all clients except sender
+func (r *Room) collectClientsExcept(sender *Client) []*Client {
 	r.mu.RLock()
-	clients := make([]*Client, 0, len(r.Clients))
+	defer r.mu.RUnlock()
+
+	clients := make([]*Client, 0, len(r.Clients)-1)
 	for client := range r.Clients {
-		if client == sender {
-			continue
+		if client != sender {
+			clients = append(clients, client)
 		}
-		clients = append(clients, client)
 	}
-	r.mu.RUnlock()
+	return clients
+}
 
-	var dropped []*Client
-	for _, client := range clients {
-		select {
-		case client.Send <- msg:
-		default:
-			dropped = append(dropped, client)
-		}
-	}
-
-	if len(dropped) > 0 {
-		r.mu.Lock()
-		for _, client := range dropped {
-			if _, ok := r.Clients[client]; ok {
-				delete(r.Clients, client)
-				client.closeOnce.Do(func() {
-					close(client.Send)
-				})
-			}
-		}
-		r.mu.Unlock()
-	}
+// sendExcept sends message to all clients except the sender
+func (r *Room) sendExcept(sender *Client, msg []byte) {
+	clients := r.collectClientsExcept(sender)
+	dropped := r.sendToClients(clients, msg)
+	r.cleanupDroppedClients(dropped)
 }

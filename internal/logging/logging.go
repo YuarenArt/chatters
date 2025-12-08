@@ -10,7 +10,8 @@ import (
 )
 
 type Level int
-type keyType string
+
+type ContextKey string
 
 const (
 	Debug Level = -4
@@ -18,7 +19,7 @@ const (
 	Warn  Level = 4
 	Error Level = 8
 
-	loggerKey keyType = "logger"
+	RequestIDKey ContextKey = "request_id"
 )
 
 // Logger defines the interface for structured logging.
@@ -89,7 +90,7 @@ func (l *SlogLogger) Error(ctx context.Context, msg string, keysAndValues ...int
 
 func (l *SlogLogger) Log(ctx context.Context, level Level, msg string, keysAndValues ...interface{}) {
 	if l != nil && l.logger != nil {
-		if requestID, ok := ctx.Value("request_id").(string); ok {
+		if requestID, ok := ctx.Value(RequestIDKey).(string); ok {
 			keysAndValues = append(keysAndValues, "request_id", requestID)
 		}
 		l.logger.Log(ctx, slog.Level(level), msg, keysAndValues...)

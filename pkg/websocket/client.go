@@ -26,6 +26,59 @@ type Client struct {
 	IsHost    bool
 }
 
+// setupReadConnection configures connection for reading
+func (c *Client) setupReadConnection() {
+	c.Conn.SetReadLimit(MaxMessageSize)
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
+		return nil
+	})
+	go c.startPing()
+}
+
+// readAndParseMessage reads and parses a message from connection
+func (c *Client) readAndParseMessage() (*Message, []byte, error) {
+	c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
+	_, rawMsg, err := c.Conn.ReadMessage()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var message Message
+	if err := json.Unmarshal(rawMsg, &message); err != nil {
+		return nil, nil, err
+	}
+
+	return &message, rawMsg, nil
+}
+
+// routeMessage routes message to appropriate handler
+func (c *Client) routeMessage(message *Message, rawMsg []byte) {
+	switch message.Type {
+	case "chat":
+		c.handleChatMessage(*message)
+	case "kick":
+		c.handleKickMessageIfHost(*message)
+	default:
+		c.Room.Broadcast <- rawMsg
+	}
+}
+
+// handleKickMessageIfHost handles kick message if client is host
+func (c *Client) handleKickMessageIfHost(message Message) {
+	if !c.IsHost {
+		log.Printf("Non-host %s attempted to send kick message", c.Username)
+		return
+	}
+
+	var kick KickMessage
+	if err := json.Unmarshal(message.Data, &kick); err != nil {
+		log.Printf("Failed to unmarshal kick message: %v", err)
+		return
+	}
+	c.handleKickMessage(kick)
+}
+
 // Read reads messages from WebSocket connection
 func (c *Client) Read() {
 	defer func() {
@@ -33,43 +86,14 @@ func (c *Client) Read() {
 		c.Conn.Close()
 	}()
 
-	c.Conn.SetReadLimit(MaxMessageSize)
-
-	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
-		return nil
-	})
-	go c.startPing()
+	c.setupReadConnection()
 
 	for {
-		c.Conn.SetReadDeadline(time.Now().Add(readDeadline))
-		_, msg, err := c.Conn.ReadMessage()
+		message, rawMsg, err := c.readAndParseMessage()
 		if err != nil {
 			break
 		}
-
-		var message Message
-		if err := json.Unmarshal(msg, &message); err != nil {
-			continue
-		}
-
-		switch message.Type {
-		case "chat":
-			c.handleChatMessage(message)
-		case "kick":
-			if !c.IsHost {
-				log.Printf("Non-host %s attempted to send kick message", c.Username)
-				continue
-			}
-			var kick KickMessage
-			if err := json.Unmarshal(message.Data, &kick); err != nil {
-				log.Printf("Failed to unmarshal kick message: %v", err)
-				continue
-			}
-			c.handleKickMessage(kick)
-		default:
-			c.Room.Broadcast <- msg
-		}
+		c.routeMessage(message, rawMsg)
 	}
 }
 

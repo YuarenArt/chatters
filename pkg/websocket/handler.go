@@ -97,35 +97,89 @@ func validateRoomPassword(room *Room, providedPassword string) error {
 	return nil
 }
 
-// validateHostToken validates JWT token and checks if user is host
-func validateHostToken(hostToken, roomIDStr, jwtSecret string, room *Room) (bool, error) {
-	if hostToken == "" {
-		return false, nil
-	}
+// parseJWTToken parses and validates JWT token structure
+func parseJWTToken(hostToken, jwtSecret string) (*jwt.Token, error) {
 	token, err := jwt.Parse(hostToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return []byte(jwtSecret), nil
 	})
-	if err != nil || !token.Valid {
-		return false, nil
+
+	if err != nil {
+		return nil, err
 	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	return token, nil
+}
+
+// extractMapClaims extracts MapClaims from JWT token
+func extractMapClaims(token *jwt.Token) (jwt.MapClaims, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return false, nil
+		return nil, fmt.Errorf("invalid claims format")
 	}
-	if roomIDStr != fmt.Sprintf("%v", claims["room_id"]) || claims["host"] != true {
-		return false, nil
-	}
+	return claims, nil
+}
+
+// verifyRoomIDMatch checks if token room_id matches the requested room
+func verifyRoomIDMatch(claims jwt.MapClaims, roomIDStr string) bool {
+	return roomIDStr == fmt.Sprintf("%v", claims["room_id"])
+}
+
+// verifyHostStatus checks if token has host privileges
+func verifyHostStatus(claims jwt.MapClaims) bool {
+	host, ok := claims["host"].(bool)
+	return ok && host
+}
+
+// verifyHostIDMatch checks if token host_id matches room's host
+func verifyHostIDMatch(claims jwt.MapClaims, room *Room) bool {
 	hostIDClaim, exists := claims["host_id"]
 	if !exists {
-		return false, nil
+		return false
 	}
+
 	hostIDStr, ok := hostIDClaim.(string)
-	if !ok || hostIDStr != room.HostID {
+	if !ok {
+		return false
+	}
+
+	return hostIDStr == room.HostID
+}
+
+// validateHostToken validates JWT token and checks if user is host
+func validateHostToken(hostToken, roomIDStr, jwtSecret string, room *Room) (bool, error) {
+	if hostToken == "" {
 		return false, nil
 	}
+
+	token, err := parseJWTToken(hostToken, jwtSecret)
+	if err != nil {
+		return false, nil
+	}
+
+	claims, err := extractMapClaims(token)
+	if err != nil {
+		return false, nil
+	}
+
+	if !verifyRoomIDMatch(claims, roomIDStr) {
+		return false, nil
+	}
+
+	if !verifyHostStatus(claims) {
+		return false, nil
+	}
+
+	if !verifyHostIDMatch(claims, room) {
+		return false, nil
+	}
+
 	return true, nil
 }
 
