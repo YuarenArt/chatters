@@ -29,7 +29,6 @@ COPY --from=builder /app/chatters .
 
 # Copy static files and templates
 COPY web/static ./web/static
-COPY web/static/templates ./web/static/templates
 
 # Expose ports
 EXPOSE 8080 9090 2112
